@@ -35,10 +35,10 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
         dir_util.copy_tree(pjoin(maddump_dir, 'FITPACK'), 
                            pjoin(self.dir_path, 'Source/FITPACK'))
         
-        cp(maddump_dir + 'dummy_fct.f',
-               self.dir_path + '/SubProcesses/dummy_fct.f')
-        cp(maddump_dir + 'unwgt.f',
-               self.dir_path + '/SubProcesses/unwgt.f')
+        #cp(maddump_dir + 'dummy_fct.f',
+        #       self.dir_path + '/SubProcesses/dummy_fct.f')
+        #cp(maddump_dir + 'unwgt.f',
+        #       self.dir_path + '/SubProcesses/unwgt.f')
 
         with open(self.dir_path+'/SubProcesses/makefile') as f:
             text = []
@@ -53,15 +53,16 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
             for line in text:
                 f.write(line)
         
-        # files = ["dummy_fct.f","unwgt.f"]
-        # template = [open(pjoin(self.dir_path, "SubProcesses", x),"r").read() for x in files] 
-        # plugin = [open(pjoin(self.mgme_dir, "PLUGIN", "maddump", x),"r").read() for x in files] 
-        # remove_list = [['get_dummy_x1','get_dummy_x1_x2'],["write_leshouche"]]
-        # for i in range(len(files)):
-        #     ff = writers.FortranWriter(pjoin(self.dir_path, "SubProcesses", files[i]))
-        #     removed = ff.remove_routine(template[i], remove_list[i])
-        #     ff.writelines(plugin[i])
-        #     ff.close()
+        files = ["dummy_fct.f","unwgt.f"]
+        remove_list = [['get_dummy_x1','get_dummy_x1_x2'],["write_leshouche"]]
+        for name, to_rm in zip(files, remove_list):
+            template = open(pjoin(self.dir_path, "SubProcesses", name),"r").read()
+            plugin = open(pjoin(self.mgme_dir, "PLUGIN", "maddump", name),"r").read()
+            misc.sprint(pjoin(self.mgme_dir, "PLUGIN", "maddump", name))
+            ff = writers.FortranWriter(pjoin(self.dir_path, "SubProcesses", name))
+            ff.remove_routine(template, to_rm, formatting=False)
+            ff.writelines(plugin, formatting=False)
+            ff.close()
 
 
     # def get_source_libraries_list(self):
@@ -88,3 +89,20 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
             writer.write('\tcd FITPACK; make clean; cd ..\n')
             
         return replace_dict
+    
+    def pass_information_from_cmd(self, cmd):
+        """pass information from the command interface to the exporter.
+           Please do not modify any object of the interface from the exporter.
+        """
+        self.cmd = cmd
+        return super(MadDump, self).pass_information_from_cmd(cmd)
+        
+    def finalize(self,*args, **opts):
+        
+        from madgraph import MG5DIR    
+        filename = os.path.join(self.cmd._export_dir, 'Cards', 'me5_configuration.txt')
+        self.cmd.do_save('options %s' % filename.replace(' ', '\ '), check=False,
+                         to_keep={'mg5_path':MG5DIR})
+        
+        return super(MadDump, self).finalize(*args, **opts)
+    
