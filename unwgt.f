@@ -371,9 +371,9 @@ c     Store weight for event
             
       subroutine picktheta(E,rv,theta)
       implicit none
-      integer ncells,n,i,j,icell(10000),ios
+      integer ncells,n,i,j,icell(100000),ios
       double precision E,rv(2),theta
-      double precision cells(10000,4),a(4),w(10000),wtot,Emin,Emax
+      double precision cells(100000,4),a(4),w(100000),wtot,Emin,Emax
       double precision area,eps,Em,Ep,s
       common/celltable/cells,ncells
       logical fstcall

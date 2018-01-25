@@ -155,7 +155,7 @@ c      common/phitilde_table/x,y,w,n
       double precision s,min,max,xb,xe,fp,wrk(100000)
       integer kx,nx,ier
       double precision tx(nmax),c(nmax)
-      common/fit1dim/kx,nx,tx,c
+      common/fit1dim/kx,nx,tx,c,xe,xb,wrk
 
       open(unit=200,file='../ehist.dat',status='old',
      $              err=999)
@@ -193,11 +193,11 @@ c     loop over infile lines until EoF is reached
 c     init parameters for bi-splines fitting  
       min=minval(x,MASK=x.gt.0d0)
       max= maxval(x)
-      xb=0d0                    !xmin range
-      xe=max + 10d0             !xmin range
+      xb=min                    !xmin range
+      xe=max                    !xmin range
       kx=3                      !x spline order
-      s = 100                   !smoothing parameter
-      nxest= n+kx+1         
+      s = n+dsqrt(2d0*n)        !smoothing parameter
+      nxest= n/2         
       lwrk = n*(kx+1)+nxest*(7+3*kx)
 
 c     curve fitting using the FITPACK by Dierckx
@@ -216,20 +216,27 @@ c     curve fitting using the FITPACK by Dierckx
       integer nmax,i
       parameter (nmax=1000) 
       integer kx,nx,ier
-      double precision tx(nmax),c(nmax)
+      double precision tx(nmax),c(nmax),xe,xb,wrk(100000)
       double precision norm,splint
-      common/fit1dim/kx,nx,tx,c
+      common/fit1dim/kx,nx,tx,c,xe,xb,wrk
       external splint
 
-c     normalization check
-c      norm = splint(tx,nx,c,kx,xb,xe,wrk1)
+c$$$      real ran1
+c$$$      external ran1
+c$$$      integer iseed
+c$$$      data iseed /0/
+
+
+c     evaluate normalization
+      norm = splint(tx,nx,c,kx,xb,xe,wrk)
 c      write(*,*) '#' , norm
 
 c      open(unit=210, file='../out.dat', status='unknown')
 c      do i=1,100000
 c     evaluate the spline interpolation
-c         E = 48.68d0 + ran1()*(325.33d0-48.68d0)
+c         E = .75d0 + ran1(iseed)*(344.5d0-.75d0)
       call splev(tx,nx,c,kx,E,DMpdf,1,ier)
+      DMpdf = Dmpdf/norm
 c         write(210,*) E, DMpdf
 c      enddo
 c      stop
