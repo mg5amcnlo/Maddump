@@ -46,6 +46,8 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
                self.dir_path + '/Cards/meshfitter2D.py')
         cp(maddump_dir + 'lhe-meshfitter.py',
                self.dir_path + '/Cards/lhe-meshfitter.py')
+        cp(maddump_dir + 'README_MADDUMP',
+               self.dir_path + '/Cards/README_MADDUMP')
         
         with open(self.dir_path+'/SubProcesses/makefile') as f:
             text = []

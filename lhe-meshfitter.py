@@ -25,19 +25,29 @@ if '__main__' == __name__:
     sys.path.append('../../')
     sys.path.append('../../madgraph/various')
 
+import os
+import logging
 import math
 import lhe_parser
+import madgraph.various.banner as banner_mod
 import numpy as np
 from meshfitter2D import *
+
+pjoin = os.path.join
+pwd_path=os.getcwd()
+logging.basicConfig()
+
+lpp2 = {'electron' : 0, 'proton' : 1}
+ebeam2 = {'electron' : 0.000511, 'proton' : 0.938}
 
 #INPUT
 #DM_pdgcode = [5000521,-5000521]
 DM_pdgcode = [22006,-22006]
 events_lhefile = 'unweighted_events.lhe.gz'
+detector_particle = 'proton' 
 
 def eff_function(E,Theta):
     return 1
-
 
 # Construction of the data sample suited for the 2D histogramming
 # by parsing the LHE events file.
@@ -77,6 +87,13 @@ hist2D.plot()
 
 # Generation of the 1D distribution integrated in angles
 # and of the output ehist.dat
-
 hist2D.fit('1D_x')
 hist2D.export_histogram('ehist.dat','1D_x')
+
+# Update parameters in the run card
+run_card = banner_mod.RunCard(pjoin(pwd_path,'run_card_default.dat'))
+run_card['lpp2'] = lpp2[detector_particle]
+run_card['ebeam1'] = E_max
+run_card['ebeam2'] = ebeam2[detector_particle]
+
+run_card.write(pjoin(pwd_path, 'run_card.dat'))

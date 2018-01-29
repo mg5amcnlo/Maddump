@@ -371,16 +371,16 @@ c     Store weight for event
             
       subroutine picktheta(E,rv,theta)
       implicit none
-      integer ncells,n,i,j,icell(100000),ios
+      integer maxcell
+      parameter (maxcell=1000000)
+      integer ncells,n,i,j,icell(maxcell),ios
       double precision E,rv(2),theta
-      double precision cells(100000,4),a(4),w(100000),wtot,Emin,Emax
+      double precision cells(maxcell,4),a(4),w(maxcell),wtot,Emin,Emax
       double precision area,eps,Em,Ep,s
       common/celltable/cells,ncells
       logical fstcall
       data fstcall/.true./
-      save fstcall
-
-      eps = 1d-1          ! parameter giving a small resolution in energy
+      save fstcall,eps
 
 c     At the first call, read and store the cell parameters from the 
 c     cell_fortran.dat file
@@ -388,6 +388,7 @@ c     cell_fortran.dat file
          open(unit=210,file='../cell_fortran.dat',status='old',
      *        err=999)
 c     loop over infile lines until EoF is reached
+         eps = 1d9
          ncells=1
          do 
             read(210,*,iostat=ios) a(1),a(2),a(3),a(4)
@@ -400,10 +401,19 @@ c     loop over infile lines until EoF is reached
                ncells=ncells-1
                close(210)
                fstcall = .false.
+               do i= 1,ncells
+                  if(cells(i,3).lt.eps)  eps=cells(i,3)
+               enddo
+               eps= eps/10d0
                exit
             else
                cells(ncells,:)= a(:)
                ncells=ncells+1
+               if(ncells.gt.maxcell) then
+                  write(*,*) 'Error: the number of cells of the 2D mesh exceeds
+     $                        the allowed maxcell value. Exit!'
+                  call exit(-1)
+               endif
             endif
          enddo
       endif
