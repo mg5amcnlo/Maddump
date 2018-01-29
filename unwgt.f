@@ -409,6 +409,7 @@ c     loop over infile lines until EoF is reached
             else
                cells(ncells,:)= a(:)
                ncells=ncells+1
+
                if(ncells.gt.maxcell) then
                   write(*,*) 'Error: the number of cells of the 2D mesh exceeds
      $                        the allowed maxcell value. Exit!'
@@ -430,20 +431,29 @@ c     The weights and their normalization are computed
          Emin = cells(i,1)
          Emax = cells(i,1)+cells(i,3)
          Ep = E+eps
-         Em = E+eps
+         Em = E-eps
          if (Em.ge.Emin.and.Em.lt.Emax) then
             icell(n) = i
             if(Ep.le.Emax) then
                w(n) = (2d0*eps)/cells(i,3)
                wtot = wtot + w(n)
             else 
-               w(n) = (Emax-Ep)/cells(i,3)
+               w(n) = (Emax-Em)/cells(i,3)
+               wtot = wtot + w(n)
+            endif
+            n = n+1
+         elseif (Em.le.Emin.and.Ep.gt.Emin) then
+            icell(n) = i
+            if(Ep.le.Emax) then
+               w(n) = (Ep-Emin)/cells(i,3)
+               wtot = wtot + w(n)
+            else 
+               w(n) = (Emax-Emin)/cells(i,3)
                wtot = wtot + w(n)
             endif
             n = n+1
          endif
       enddo
-
       n=n-1
 
 c     check if something went wrong
@@ -452,7 +462,7 @@ c     check if something went wrong
          stop
       endif
 
-c     pick the theta value according to the cells hit and their weights
+c     pick a theta value according to the hit cells and their weights;
 c     once a cell is selected, a value of theta is taken uniformly inside it 
       s=0d0
       do j = 1,n
