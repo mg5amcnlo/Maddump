@@ -40,7 +40,7 @@ c     Initialization of the dark matter pdf
       
 c     note: ebeam(1),pmass(1) and ebeam(2),pmass(2) are taken from 'run.inc'
       m1=pmass(1)
-      m2=pmass(2)
+      m2=ebeam(2)
 
 c     x fraction for DM pdf
       xmin=Emin/ebeam(1)
@@ -51,17 +51,17 @@ c     we add in the jacobian the DMpdf
       
 c     Set CM rapidity for use in the rap() function
       p0=X1*ebeam(1)+ebeam(2)
-      p3=sqrt( (X1*ebeam(1))**2-m1**2 )-sqrt( ebeam(2)**2-m2**2 )
+      p3=sqrt( (X1*ebeam(1))**2-m1**2 )!-sqrt( ebeam(2)**2-m2**2 )
       cm_rap=.5d0*dlog((p0+p3)/(p0-p3))
       set_cm_rap=.true.
 
 c     Set shat
-      shat = m1**2 + m2**2 + 2d0*( X1*ebeam(1)*ebeam(2) 
-     $       + sqrt((X1*ebeam(1))**2-m1**2)*sqrt(ebeam(2)**2-m2**2) )
+      shat = m1**2 + m2**2 + 2d0*X1*ebeam(1)*ebeam(2) 
+c     $       + sqrt((X1*ebeam(1))**2-m1**2)*sqrt(ebeam(2)**2-m2**2) )
 
 c     Boost in the 'partonic' centre-of-mass frame
 c     pbeam(1) and pbeam(2) are returned to the caller
-      call mom2cx(sqrt(shat),m1,0d0,1d0,0d0,pbeam1(0),pbeam2(0))
+      call mom2cx(sqrt(shat),m1,m2,1d0,0d0,pbeam1(0),pbeam2(0))
       
       return 
       end
