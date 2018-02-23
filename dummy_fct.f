@@ -228,7 +228,7 @@ c$$$      data iseed /0/
 
 
 c     evaluate normalization
-      norm = splint(tx,nx,c,kx,xb,xe,wrk)
+c      norm = splint(tx,nx,c,kx,xb,xe,wrk)
 c      write(*,*) '#' , norm
 
 c      open(unit=210, file='../out.dat', status='unknown')
@@ -236,7 +236,8 @@ c      do i=1,100000
 c     evaluate the spline interpolation
 c         E = .75d0 + ran1(iseed)*(344.5d0-.75d0)
       call splev(tx,nx,c,kx,E,DMpdf,1,ier)
-      DMpdf = Dmpdf/norm
+c      DMpdf = Dmpdf/norm
+      DMpdf = Dmpdf
 c         write(210,*) E, DMpdf
 c      enddo
 c      stop

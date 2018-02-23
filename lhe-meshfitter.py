@@ -45,9 +45,13 @@ ebeam2 = {'electron' : 0.000511, 'proton' : 0.938}
 DM_pdgcode = [22006,-22006]
 events_lhefile = 'unweighted_events.lhe.gz'
 detector_particle = 'proton' 
+th_min=0.
+th_max=.05
 
-def eff_function(E,Theta):
-    return 1
+ncores=1
+
+def eff_function(E,theta):
+    return np.heaviside(theta-th_min,0.)*np.heaviside(th_max-theta,0.)
 
 # Construction of the data sample suited for the 2D histogramming
 # by parsing the LHE events file.
@@ -60,13 +64,15 @@ E_max = 0.
 theta_min = np.pi/2.
 theta_max = 0.
 
+xsec =lhe.cross
+nevt=len(lhe)
 for event in lhe:
     for particle in event:
         if particle.status == 1: # stable final state 
             if particle.pid in DM_pdgcode:
                 p = lhe_parser.FourMomentum(particle)
                 theta = np.arccos(p.pz/p.norm)
-                data.append(WeightedPoint(p.E,theta,eff_function(p.E,theta)))
+                data.append(WeightedPoint(p.E,theta,xsec/nevt*eff_function(p.E,theta)))
                 if p.E < E_min:
                     E_min = p.E
                 if p.E > E_max:
@@ -76,19 +82,22 @@ for event in lhe:
                 if theta > theta_max:
                     theta_max = theta
 
+if(theta_max > th_max): theta_max= th_max
+if(theta_min < th_min): theta_max= th_min
+
 print(E_min,theta_min,E_max,theta_max,len(data))
+    
 # Generation of the 2DMesh and of the output file cell_fortran.dat
 # the mesh is also plotted in a 2D graph 
 hist2D = CellHistogram(Point(E_min,theta_min),E_max-E_min,theta_max-theta_min,20)
 hist2D.add_pts(data)
-hist2D.fit()
-hist2D.export_histogram('cell_fortran.dat')
-hist2D.plot()
+hist2D.fit(ncores=ncores)
+#hist2D.export_histogram('cell_fortran.dat')
+plot('cell_fortran.dat')
 
 # Generation of the 1D distribution integrated in angles
 # and of the output ehist.dat
-hist2D.fit('1D_x')
-hist2D.export_histogram('ehist.dat','1D_x')
+hist2D.fit('1D_x',ncores=ncores)
 
 # Update parameters in the run card
 run_card = banner_mod.RunCard(pjoin(pwd_path,'run_card_default.dat'))
