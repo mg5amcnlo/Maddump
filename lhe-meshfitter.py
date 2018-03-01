@@ -46,7 +46,7 @@ DM_pdgcode = [22006,-22006]
 events_lhefile = 'unweighted_events.lhe.gz'
 detector_particle = 'proton' 
 th_min=0.
-th_max=.05
+th_max=.03
 
 ncores=1
 

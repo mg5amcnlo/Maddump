@@ -62,8 +62,8 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
             for line in text:
                 f.write(line)
         
-        files = ["dummy_fct.f","unwgt.f"]
-        remove_list = [['get_dummy_x1','get_dummy_x1_x2'],["write_leshouche"]]
+        files = ["dummy_fct.f","unwgt.f","reweight.f"]
+        remove_list = [['get_dummy_x1','get_dummy_x1_x2'],["write_leshouche"],["setclscales"]]
         for name, to_rm in zip(files, remove_list):
             template = open(pjoin(self.dir_path, "SubProcesses", name),"r").read()
             plugin = open(pjoin(self.mgme_dir, "PLUGIN", "maddump", name),"r").read()

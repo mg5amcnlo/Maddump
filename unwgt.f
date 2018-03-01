@@ -205,8 +205,14 @@ c**     new incoming beam alternative start
             
 c     Boost to the lab frame
             call momntx(E,pmass(1),1d0,0d0,pboost)
-            pboost(0) = pboost(0) + xbk(2)*ebeam(2)
-            pboost(3) = pboost(3) - xbk(2)*ebeam(2)
+            if(lpp(2) .eq. 1) then ! DIS
+               pboost(0) = pboost(0) + xbk(2)*ebeam(2)
+               pboost(3) = pboost(3) - xbk(2)*ebeam(2)
+            elseif(lpp(2) .eq. 0) then ! elastic scattering 
+               pboost(0) = pboost(0) + ebeam(2)
+               pboost(3) = pboost(3)
+            endif
+            
             do j=1,nexternal
                call boostx(p(0,j),pboost,pb(0,isym(j,jsym)))
                pb(4,isym(j,jsym))=pmass(j)

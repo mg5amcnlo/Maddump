@@ -179,6 +179,7 @@ c     loop over infile lines until EoF is reached
             close(200)
             exit
          else
+            if (n.eq.1) min=a(1)  
             x(n) = 0.5d0*(a(1)+a(2))
             y(n) = a(3)
             if (a(4).gt.1d-12) then
@@ -186,17 +187,16 @@ c     loop over infile lines until EoF is reached
             else
                w(n) = 1d6 
             endif
+            max=a(2)
             n=n+1
          endif
       enddo
 
 c     init parameters for bi-splines fitting  
-      min=minval(x,MASK=x.gt.0d0)
-      max= maxval(x)
-      xb=min                    !xmin range
-      xe=max                    !xmin range
-      kx=3                      !x spline order
-      s = n+dsqrt(2d0*n)        !smoothing parameter
+      xb=min                       !xmin range
+      xe=max                       !xmin range
+      kx=3                         !x spline order
+      s = n+dsqrt(2d0*n)           !smoothing parameter
       nxest= n/2         
       lwrk = n*(kx+1)+nxest*(7+3*kx)
 
