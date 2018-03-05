@@ -42,11 +42,11 @@ ebeam2 = {'electron' : 0.000511, 'proton' : 0.938}
 
 #INPUT
 #DM_pdgcode = [5000521,-5000521]
-DM_pdgcode = [22006,-22006]
+DM_pdgcode = [22008,-22008]
 events_lhefile = 'unweighted_events.lhe.gz'
 detector_particle = 'proton' 
 th_min=0.
-th_max=.03
+th_max=.05
 
 ncores=1
 
@@ -89,11 +89,11 @@ print(E_min,theta_min,E_max,theta_max,len(data))
     
 # Generation of the 2DMesh and of the output file cell_fortran.dat
 # the mesh is also plotted in a 2D graph 
-hist2D = CellHistogram(Point(E_min,theta_min),E_max-E_min,theta_max-theta_min,20)
+hist2D = CellHistogram(Point(E_min,theta_min),E_max-E_min,theta_max-theta_min,50)
 hist2D.add_pts(data)
 hist2D.fit(ncores=ncores)
 #hist2D.export_histogram('cell_fortran.dat')
-plot('cell_fortran.dat')
+#plot('cell_fortran.dat')
 
 # Generation of the 1D distribution integrated in angles
 # and of the output ehist.dat

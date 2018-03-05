@@ -47,7 +47,7 @@ c     x fraction for DM pdf
       xmax= 1d0
       X1 = (xmax-xmin)*R+xmin 
 c     we add in the jacobian the DMpdf
-      sjac = sjac*(xmax-xmin)*DMpdf(X1*ebeam(1))
+      sjac = sjac*(xmax-xmin)*ebeam(1)*DMpdf(X1*ebeam(1))
       
 c     Set CM rapidity for use in the rap() function
       p0=X1*ebeam(1)+ebeam(2)
@@ -117,7 +117,7 @@ c     x fraction for DM pdf
       xmax(1)=1d0
       X(1) = (xmax(1)-xmin(1))*R(1)+xmin(1) 
 c     we add in the jacobian the DMpdf
-      sjac = sjac*(xmax(1)-xmin(1))*DMpdf(X(1)*ebeam(1))
+      sjac = sjac*(xmax(1)-xmin(1))*ebeam(1)*DMpdf(X(1)*ebeam(1))
 
 c     x fraction for parton pdf     
       xmin(2)=0d0
