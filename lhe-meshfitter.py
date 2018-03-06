@@ -48,10 +48,16 @@ detector_particle = 'proton'
 th_min=0.
 th_max=.05
 
-ncores=1
+ncores=8
+
+def heaviside(x):
+    if x>0:
+        return 1
+    else:
+        return 0
 
 def eff_function(E,theta):
-    return np.heaviside(theta-th_min,0.)*np.heaviside(th_max-theta,0.)
+    return heaviside(theta-th_min)*heaviside(th_max-theta)
 
 # Construction of the data sample suited for the 2D histogramming
 # by parsing the LHE events file.

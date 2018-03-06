@@ -558,6 +558,18 @@ class CellHistogram(object):
         tmp = loadtxt(filetmp, unpack = True)
         tmp_T = transpose(tmp)
         sort = tmp_T[tmp_T[:,0].argsort()]
+        
+        x,y,width,height = loadtxt('cell_fortran.dat', unpack = True)
+
+        xmin=min(x)
+        if xmin > sort[0,0]:
+             sort[0,0] = xmin
+
+        c = [x[i]+width[i] for i in range(len(x))]
+        xmax = max(c)
+        if xmax < sort[-1,1]:
+            sort[-1,1]= xmax 
+
         for line in sort:
             out.write(str(line)[1:-1]+"\n")
 
@@ -680,20 +692,20 @@ class CellHistogram(object):
         file = 'ehist_'+str(i)+'.dat'
         out = open(file,'w')
 
-        local_canvas = deepcopy(self.canvas)
+        # local_canvas = deepcopy(canvas)
         
-        x,y,width,height = loadtxt('cell_fortran.dat', unpack = True)
+        # x,y,width,height = loadtxt('cell_fortran.dat', unpack = True)
 
-        xmin=min(x)
-        if xmin > local_canvas.corner.x:
-            local_canvas.corner.x = xmin
+        # xmin=min(x)
+        # if xmin > local_canvas.corner.x:
+        #     local_canvas.corner.x = xmin
 
-        c = [x[i]+width[i] for i in range(len(x))]
-        xmax = max(c)
-        if xmax < local_canvas.corner.x+local_canvas.width:
-            local_canvas.width = xmax - local_canvas.corner.x 
+        # c = [x[i]+width[i] for i in range(len(x))]
+        # xmax = max(c)
+        # if xmax < local_canvas.corner.x+local_canvas.width:
+        #     local_canvas.width = xmax - local_canvas.corner.x 
         
-        cells = [local_canvas]
+        cells = [canvas]
 
         npts=self.npts
         weight_exit = self.weight/50
