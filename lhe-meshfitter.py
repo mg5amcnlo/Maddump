@@ -45,8 +45,26 @@ ebeam2 = {'electron' : 0.000511, 'proton' : 0.938}
 DM_pdgcode = [22008,-22008]
 events_lhefile = 'unweighted_events.lhe.gz'
 detector_particle = 'proton' 
+
+
+#distance target - detector in cm
+d_target_detector = 3804.75
+
+#circular shape
 th_min=0.
-th_max=.05
+th_max=.0118
+
+#rectangular shape
+#coordinate of the center wrt to the beam axis in cm 
+xc = 0.
+yc = 0.
+#side in cm
+side_x=37.45*2
+side_y=45.15*2
+xmin = xc - side_x/2.
+xmax = xc + side_x/2.
+ymin = yc - side_y/2.
+ymax = yc + side_y/2.
 
 ncores=8
 
@@ -56,8 +74,15 @@ def heaviside(x):
     else:
         return 0
 
-def eff_function(E,theta):
-    return heaviside(theta-th_min)*heaviside(th_max-theta)
+def eff_function(E,theta,cphi,sphi):
+    x = d_target_detector*np.sin(theta)*cphi
+    y = d_target_detector*np.sin(theta)*sphi
+    return heaviside(x-xmin)*heaviside(xmax-x)*heaviside(y-ymin)*heaviside(ymax-y)
+
+ncores=8
+
+# def eff_function(E,theta):
+#     return heaviside(theta-th_min)*heaviside(th_max-theta)
 
 # Construction of the data sample suited for the 2D histogramming
 # by parsing the LHE events file.
@@ -72,24 +97,39 @@ theta_max = 0.
 
 xsec =lhe.cross
 nevt=len(lhe)
+npass = 0
 for event in lhe:
     for particle in event:
         if particle.status == 1: # stable final state 
             if particle.pid in DM_pdgcode:
                 p = lhe_parser.FourMomentum(particle)
                 theta = np.arccos(p.pz/p.norm)
-                data.append(WeightedPoint(p.E,theta,xsec/nevt*eff_function(p.E,theta)))
-                if p.E < E_min:
-                    E_min = p.E
-                if p.E > E_max:
-                    E_max = p.E
-                if theta < theta_min:
-                    theta_min = theta
-                if theta > theta_max:
-                    theta_max = theta
+                # data.append(WeightedPoint(p.E,theta,xsec/nevt*eff_function(p.E,theta)))
+                cphi = p.px/np.sqrt(p.px**2+p.py**2)
+                sphi = p.py/np.sqrt(p.px**2+p.py**2)
+                data.append(WeightedPoint(p.E,theta,xsec/nevt*eff_function(p.E,theta,cphi,sphi)))
+                
+                if eff_function(p.E,theta,cphi,sphi) != 0:                    
+                    npass+=1
+                    if p.E < E_min:
+                        E_min = p.E
+                    if p.E > E_max:
+                        E_max = p.E
+                    if theta < theta_min:
+                        theta_min = theta
+                    if theta > theta_max:
+                        theta_max = theta
+#                 if p.E < E_min:
+#                     E_min = p.E
+#                 if p.E > E_max:
+#                     E_max = p.E
+#                 if theta < theta_min:
+#                     theta_min = theta
+#                 if theta > theta_max:
+#                     theta_max = theta
 
-if(theta_max > th_max): theta_max= th_max
-if(theta_min < th_min): theta_max= th_min
+# if(theta_max > th_max): theta_max= th_max
+# if(theta_min < th_min): theta_max= th_min
 
 print(E_min,theta_min,E_max,theta_max,len(data))
     

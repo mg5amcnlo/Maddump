@@ -6,7 +6,10 @@
 #   2. new cluster support
 #   3. new interface
 
+#if '__main__' == __name__:
+
 import maddump as mdd
+import new_interface.maddump_interface as maddump_interface
 
 # 1. Define new output mode
 #    example: new_output = {'myformat': MYCLASS}
@@ -24,7 +27,7 @@ new_cluster = {}
  # 3. Define a new interface (allow to add/modify MG5 command)
 #    This can be activated via ./bin/mg5_aMC --mode=PLUGINNAME
 ## Put None if no dedicated command are required
-new_interface = None
+new_interface = maddump_interface.MadDump_interface
  
 ########################## CONTROL VARIABLE ####################################
 __author__ = 'Luca Buonocore'

@@ -12,6 +12,7 @@ import madgraph.interface.common_run_interface as common_run
 
 import models.check_param_card as check_param_card
 import models.model_reader as model_reader
+import madgraph.core.helas_objects as helas_objects
 
 import re
 pjoin = os.path.join
@@ -43,9 +44,9 @@ class MadDump_interface(master_interface.MasterCmd):
     
     # process number to distinguish the different type of matrix element
     process_tag = {'prod': 900, 
-                   'DIS': 1000,
-                   'electron': 1100,
-                   'ENS': 1200}
+                   'DIS': 1100,
+                   'electron': 1200,
+                   'ENS': 1300}
     
     # eff_operators_SI = {1:'SIEFFS', 2:'SIEFFF', 3:'SIEFFV'}
     # eff_operators_SD = {1:False, 2:'SDEFFF', 3:'SDEFFV'} 
@@ -224,22 +225,39 @@ class MadDump_interface(master_interface.MasterCmd):
             except:
                 raise DMError, 'Output command error: the directory %s already exists!' % dirname 
             os.chdir(dirname)
+
+
+        # print(len(self._curr_proc_defs))
+        # print(len(self._curr_matrix_elements))
+        # print(self._curr_matrix_elements)
+        # print(len(self._curr_amps))
+        # # print(self._curr_amps)
+        # print(self._done_export)
         
-            
+        # exit(-1)
+              
         for proc in self._curr_proc_defs:
+            
             if proc['id'] < 1000:
-                line = 'production' 
-                with misc.TMP_variable(self, ['_curr_proc_defs'], [proc]):
+                self._curr_matrix_elements = helas_objects.HelasMultiProcess()
+                amps = [ amp for amp in self._curr_amps if amp.get('process')['id'] == proc['id'] ]
+                line = 'production'
+                with misc.TMP_variable(self, ['_curr_proc_defs','_curr_amps','_done_export'], [proc,amps,False]):                    
                     super(MadDump_interface, self).do_output(line)
             else:
+                self._curr_matrix_elements = helas_objects.HelasMultiProcess()
                 processes_list = self.process_tag.keys()
                 for process in processes_list:
                     if self.process_tag[process] == proc['id']:
                         channel = process
                         break
-
+                print(proc['id'])
+                print(len(self._curr_amps))
+                amps = [ amp for amp in self._curr_amps if amp.get('process')['id'] == proc['id'] ]
+                print(len(amps))
+                
                 line = 'maddump interaction_' + channel 
-                with misc.TMP_variable(self, ['_curr_proc_defs'], [proc]):
+                with misc.TMP_variable(self, ['_curr_proc_defs','_curr_amps','_done_export'], [proc,amps,False]):                    
                     super(MadDump_interface, self).do_output(line)
                 current_dir = 'interaction_' + channel
                 paramcard_path = '/Cards/param_card.dat'

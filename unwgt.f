@@ -483,3 +483,92 @@ c     once a cell is selected, a value of theta is taken uniformly inside it
       call exit(-1)
 
       end
+
+      subroutine pickphi(theta,rv,phi)
+*     extracts an azimuthal angle (phi) keeping the correlations theta-phi
+*     for the case of a rectangular hit surface. 
+      implicit none
+      real * 8 rv(2),theta,phi
+      real * 8 d_target_detector, side_x,side_y
+      real * 8 radius,phi0,phi1,phi_min,phi_max
+      double precision pi
+      parameter (pi=3.1415926d0)
+
+c     input parameter: to be put in a suitable detecto card
+      d_target_detector = 3804d0
+      
+      side_x = 45.15d0          !*2d0
+      side_y = 37.45d0          !*2d0
+      
+      radius = d_target_detector*dsin(theta)
+      
+      if (side_y .gt. side_x) then
+         
+         if(radius.le.side_x) then 
+            phi = 2d0*pi*rv(1)
+         else if (radius.le.side_y) then
+            phi0 = dacos(side_x/radius)
+            if (rv(1).lt.0.5d0) then
+               phi_min = phi0
+               phi_max = pi-phi0
+            else
+               phi_min = pi+phi0
+               phi_max = 2d0*pi-phi0
+            endif
+            phi = phi_min + rv(2)*(phi_max-phi_min)
+         else
+            phi0 = dacos(side_x/radius)
+            phi1 = dasin(side_y/radius)
+            if (rv(1) .lt.0.25d0) then
+               phi_min = phi0 
+               phi_max = phi1
+            else if (rv(1) .lt. 0.5d0) then
+               phi_min = pi-phi1
+               phi_max = pi-phi0
+            else if (rv(1) .lt. 0.75d0) then
+               phi_min = pi+phi0
+               phi_max = pi+phi1
+            else 
+               phi_min = 2d0*pi-phi1
+               phi_max = 2d0*pi-phi0
+            endif
+            phi = phi_min + rv(2)*(phi_max-phi_min)
+         endif
+         
+      else
+         
+         if(radius.le.side_y) then 
+            phi = 2d0*pi*rv(1)
+         else if (radius.lt.side_x) then
+            phi0 = dasin(side_y/radius)
+            if (rv(1).lt.0.5d0) then
+               phi_min = pi-phi0
+               phi_max = pi+phi0
+            else
+               phi_min = -phi0
+               phi_max = +phi0
+            endif
+            phi = phi_min + rv(2)*(phi_max-phi_min)
+            if (phi.lt.0d0) phi = 2d0*pi+phi
+         else
+            phi0 = dacos(side_x/radius)
+            phi1 = dasin(side_y/radius)
+            if (rv(1) .lt.0.25d0) then
+               phi_min = phi0 
+               phi_max = phi1
+            else if (rv(1) .lt. 0.5d0) then
+               phi_min = pi-phi1
+               phi_max = pi-phi0
+            else if (rv(1) .lt. 0.75d0) then
+               phi_min = pi+phi0
+               phi_max = pi+phi1
+            else 
+               phi_min = 2d0*pi-phi1
+               phi_max = 2d0*pi-phi0
+            endif
+            phi = phi_min + rv(2)*(phi_max-phi_min)
+         endif
+      endif
+      
+      return
+      end
