@@ -1,3 +1,534 @@
+      subroutine Zoom_Event(wgt,p)
+C**************************************************************************
+C     Determines if region needs to be investigated in case of large
+c     weight events.
+C**************************************************************************
+      IMPLICIT NONE
+c
+c     Constant
+c
+      integer    max_zoom
+      parameter (max_zoom=2000)
+      include 'genps.inc'
+      include 'nexternal.inc'
+
+c
+c     Arguments
+c
+      double precision wgt, p(0:3,nexternal)
+c
+c     Local
+c
+      double precision xstore(2),gstore,qstore(2)
+      double precision trunc_wgt, xsum, wstore,pstore(0:3,nexternal)
+      integer ix, i,j
+
+C     
+C     GLOBAL
+C
+      double precision twgt, maxwgt,swgt(maxevents)
+      integer                             lun, nw, itmin
+      common/to_unwgt/twgt, maxwgt, swgt, lun, nw, itmin
+      integer nzoom
+      double precision  tx(1:3,maxinvar)
+      common/to_xpoints/tx, nzoom
+      double precision xzoomfact
+      common/to_zoom/  xzoomfact
+      include 'run.inc'
+      include 'coupl.inc'
+c
+c     DATA
+c
+      data trunc_wgt /-1d0/
+      data xsum/0d0/
+      data wstore /0d0/
+      save ix, pstore, wstore, xstore, gstore, qstore
+c-----
+c  Begin Code
+c-----
+      if (trunc_Wgt .lt. 0d0 .and. twgt .gt. 0d0) then
+         write(*,*) 'Selecting zoom level', twgt*500, wgt
+      endif
+      if (twgt .lt. 0d0) then
+         write(*,*) 'Resetting zoom iteration', twgt
+         twgt = -twgt
+         trunc_wgt = twgt * 500d0
+      endif
+      if (nw .eq. 0) then
+         trunc_wgt = twgt * 500d0
+      endif
+      trunc_wgt=max(trunc_wgt, twgt*500d0)
+      if (nzoom .eq. 0 .and. trunc_wgt .gt. 0d0 ) then
+         if (wgt .gt. trunc_wgt) then
+            write(*,*) 'Zooming on large event ',wgt / trunc_wgt
+            wstore=wgt
+            do i=1,nexternal
+               do j=0,3
+                  pstore(j,i) = p(j,i)
+               enddo
+            enddo
+            do i=1,2
+               xstore(i)=xbk(i)
+               qstore(i)=q2fact(i)
+            enddo
+            gstore=g
+            xsum = wgt
+            nzoom = max_zoom
+            wgt=0d0
+            ix = 1
+         endif
+      elseif (trunc_wgt .gt. 0 .and. wgt .gt. 0d0) then
+         xsum = xsum + wgt
+         if (nzoom .gt. 1) wgt = 0d0
+         ix = ix + 1
+      endif
+      if (xsum .ne. 0d0 .and. nzoom .le. 1) then
+         if (wgt .gt. 0d0) then
+c            xzoomfact = xsum/real(max_zoom) / wgt !Store avg wgt
+            xzoomfact = wstore / wgt  !Store large wgt
+         else
+            xzoomfact = -xsum/real(max_zoom)
+         endif
+         wgt = max(xsum/real(max_zoom),trunc_wgt)  !Don't make smaller then truncated wgt
+         do i=1,nexternal
+            do j=0,3
+               p(j,i) = pstore(j,i)
+            enddo
+         enddo
+         do i=1,2
+            xbk(i)=xstore(i)
+            q2fact(i)=qstore(i)
+         enddo
+         g=gstore
+         write(*,'(a,2e15.3,2f15.3, i8)') 'Stored wgt ',
+     $            wgt/trunc_wgt, wstore, wstore/wgt, real(ix)/max_zoom, ix
+         trunc_wgt = max(trunc_wgt, wgt)
+         xsum = 0d0
+         nzoom = 0
+      endif
+      end
+
+      subroutine clear_events
+c-------------------------------------------------------------------
+c     delete all events thus far, start from scratch
+c------------------------------------------------------------------
+      implicit none
+c
+c     Constants
+c
+      include 'genps.inc'
+      include 'nexternal.inc'
+c
+c     Global
+c
+      integer iseed, nover, nstore
+C     
+C     GLOBAL
+C
+      double precision twgt, maxwgt,swgt(maxevents)
+      integer                             lun, nw, itmin
+      common/to_unwgt/twgt, maxwgt, swgt, lun, nw, itmin
+
+c-----
+c  Begin Code
+c-----
+c      write(*,*) 'storing Events'
+      call store_events(-1d0, .True.)
+      rewind(lun)
+      nw = 0
+      maxwgt = 0d0
+      end
+C**************************************************************************
+C      HELPING ROUTINE FOR PERFORMING THE Z BOOST OF THE EVENTS
+C**************************************************************************
+      double precision function get_betaz(pin,pout)
+C     compute the boost for the requested transformation
+      implicit none
+      double precision pin(0:3), pout(0:3)
+      double precision denom
+
+      denom = pin(0)*pout(0) - pin(3)*pout(3)
+      if (denom.ne.0d0) then
+         get_betaz = (pin(3) * pout(0) - pout(3) * pin(0)) / denom
+      else if (pin(0).eq.pin(3)) then
+         get_betaz = (pin(0)**2 - pout(0)**2)/(pin(0)**2 + pout(0)**2)
+      else if (pin(0).eq.abs(pin(3))) then
+         get_betaz = (pout(0)**2 - pin(0)**2)/(pin(0)**2 + pout(0)**2)
+      else
+         get_betaz = 0d0
+      endif
+      return
+      end
+
+      subroutine zboost_with_beta(pin, beta, pout)
+c     apply the boost
+      implicit none
+      double precision pin(0:3), pout(0:3)
+      double precision beta, gamma
+
+      gamma = 1d0/DSQRT(1-beta**2)
+      pout(0) = gamma * pin(0) - gamma * beta * pin(3)
+      pout(1) = pin(1)
+      pout(2) = pin(2)
+      pout(3) = - gamma * beta * pin(0) + gamma * pin(3)
+      return
+      end
+
+
+      SUBROUTINE unwgt(px,wgt,numproc)
+C**************************************************************************
+C     Determines if event should be written based on its weight
+C**************************************************************************
+      IMPLICIT NONE
+c
+c     Constants
+c
+      include 'genps.inc'
+      include 'nexternal.inc'
+c
+c     Arguments
+c
+      double precision px(0:3,nexternal),wgt
+      integer numproc
+c
+c     Local
+c
+      integer idum, i,j
+      double precision uwgt,yran,fudge, p(0:3,nexternal), xwgt
+C     
+C     GLOBAL
+C
+      double precision twgt, maxwgt,swgt(maxevents)
+      integer                             lun, nw, itmin
+      common/to_unwgt/twgt, maxwgt, swgt, lun, nw, itmin
+
+      double precision    matrix
+      common/to_maxmatrix/matrix
+
+      logical               zooming
+      common /to_zoomchoice/zooming
+
+c
+c     External
+c
+      real xran1
+      external xran1
+c
+c     Data
+c
+      data idum/-1/
+      data yran/1d0/
+      data fudge/10d0/
+C-----
+C  BEGIN CODE
+C-----
+      if (twgt .ge. 0d0) then
+         do i=1,nexternal
+            do j=0,3
+               p(j,i)=px(j,i)
+            enddo
+         enddo
+         xwgt = abs(wgt)
+         if (zooming) call zoom_event(xwgt,P)
+         if (xwgt .eq. 0d0) return
+         yran = xran1(idum)
+         if (xwgt .gt. twgt*fudge*yran) then
+            uwgt = max(xwgt,twgt*fudge)
+c           Set sign of uwgt to sign of wgt
+            uwgt = dsign(uwgt,wgt)
+            if (twgt .gt. 0) uwgt=uwgt/twgt/fudge
+c            call write_event(p,uwgt)
+c            write(29,'(2e15.5)') matrix,wgt
+c $B$ S-COMMENT_C $B$
+            call write_leshouche(p,uwgt,numproc,.True.)
+         elseif (xwgt .gt. 0d0 .and. nw .lt. 5) then
+            call write_leshouche(p,wgt/twgt*1d-6,numproc,.True.)
+c $E$ S-COMMENT_C $E$
+         endif
+         maxwgt=max(maxwgt,xwgt)
+      endif
+      end
+
+      subroutine store_events(force_max_wgt, scale_to_xsec)
+C**************************************************************************
+C     Takes events from scratch file (lun) and writes them to a permanent
+c     file  events.dat
+c     if force_max_weight =-1, then get it automatically (for a given truncation)
+c     if xscale=0 then the sum of the weight will be reweighted to the cross-section.
+c     computed from the last 3 iteration. otherwise the weight of each event
+c     will be multiply by that value.
+C**************************************************************************
+      IMPLICIT NONE
+c
+c     Constants
+c
+      include 'genps.inc'
+      include 'nexternal.inc'
+      include 'run_config.inc'
+c
+c     Arguments
+c
+      double precision force_max_wgt 
+      logical scale_to_xsec
+c
+c     Local
+c
+      integer i, lunw, ic(7,2*nexternal-3), n, j
+      logical done
+      double precision wgt,p(0:4,2*nexternal-3)
+      double precision xsec,xsecabs,xerr,xtot
+      double precision xsum, xover, target_wgt
+      double precision orig_Wgt(maxevents)
+      double precision xscale
+      logical store_event(maxevents)
+      integer iseed, nover, nstore
+      double precision scale,aqcd,aqed
+      double precision random
+      integer ievent
+      character*1000 buff
+      logical u_syst
+      character*(s_bufflen) s_buff(7)
+      integer nclus
+      character*(clus_bufflen) buffclus(nexternal)
+C     
+C     GLOBAL
+C
+      double precision twgt, maxwgt,swgt(maxevents)
+      integer                             lun, nw, itmin
+      common/to_unwgt/twgt, maxwgt, swgt, lun, nw, itmin
+
+      integer                   neventswritten
+      common /to_eventswritten/ neventswritten
+      
+      integer th_nunwgt
+      double precision th_maxwgt
+      common/theoretical_unwgt_max/th_maxwgt, th_nunwgt
+
+c      save neventswritten
+
+      integer ngroup
+      common/to_group/ngroup
+
+c
+c     external
+c
+      real xran1
+
+      data iseed/0/
+      data neventswritten/0/
+C-----
+C  BEGIN CODE
+C-----
+c
+c     First scale all of the events to the total cross section
+c
+
+      if (nw .le. 0) return
+      if (scale_to_xsec) then
+         call sample_result(xsecabs,xsec,xerr,itmin)
+         if (xsecabs .le. 0) return !Fix by TS 12/3/2010
+      else
+         xscale = nw*twgt
+      endif
+      xtot=0
+      call dsort(nw, swgt)
+      do i=1,nw
+         xtot=xtot+dabs(swgt(i))
+      enddo
+c
+c     Determine minimum target weight given truncation parameter
+c
+      xsum = 0d0
+      i = nw
+      do while (xsum-dabs(swgt(i))*(nw-i) .lt. xtot*trunc_max
+     $ .and. i .gt. 2)
+         xsum = xsum + dabs(swgt(i))
+         i = i-1
+      enddo
+      if (i .lt. nw) i=i+1
+      th_maxwgt = dabs(swgt(i))
+      if ( force_max_wgt.lt.0)then
+         target_wgt = dabs(swgt(i))
+      else if (.not.scale_to_xsec) then
+         target_wgt = force_max_wgt / xscale
+      else
+         stop 1
+      endif
+c
+c     Select events which will be written
+c
+      xsum = 0d0
+      nstore = 0
+      th_nunwgt = 0
+      rewind(lun)
+      done = .false. 
+      do i=1,nw
+         if (.not. done) then
+            call read_event(lun,P,wgt,n,ic,ievent,scale,aqcd,aqed,buff,
+     $           u_syst,s_buff,nclus,buffclus,done)
+         else
+            wgt = 0d0
+         endif
+         random = xran1(iseed)
+         if (dabs(wgt) .gt. target_wgt*random) then
+            xsum=xsum+max(dabs(wgt),target_Wgt)
+            store_event(i)=.true.
+            nstore=nstore+1
+         else
+            store_event(i) = .false.
+         endif
+c           we use the same seed for the two evaluation of the unweighting efficiency
+         if (dabs(wgt) .gt. th_maxwgt*random) then
+            th_nunwgt = th_nunwgt +1
+         endif
+      enddo
+      if (scale_to_xsec)then
+         xscale = xsecabs/xsum
+      endif
+      target_wgt = target_wgt*xscale
+      th_maxwgt = th_maxwgt*xscale
+
+      rewind(lun)
+c     JA 8/17/2011 Don't check for previously stored events
+c      if (nstore .le. neventswritten) then
+c         write(*,*) 'No improvement in events',nstore, neventswritten
+c         return
+c      endif
+      lunw = 25
+      open(unit = lunw, file='events.lhe', status='unknown')
+      done = .false.
+      i=0      
+      xtot = 0
+      xover = 0
+      nover = 0
+      do j=1,nw
+         if (.not. done) then
+            call read_event(lun,P,wgt,n,ic,ievent,scale,aqcd,aqed,buff,
+     $           u_syst,s_buff,nclus,buffclus,done)
+         else
+            write(*,*) 'Error done early',j,nw
+         endif
+         if (store_event(j) .and. .not. done) then
+            wgt=wgt*xscale
+            wgt = dsign(max(dabs(wgt), target_wgt),wgt)
+            if (dabs(wgt) .gt. target_wgt) then
+               xover = xover + dabs(wgt) - target_wgt
+               nover = nover+1
+            endif
+            xtot = xtot + dabs(wgt)
+            i=i+1
+            call write_Event(lunw,p,wgt,n,ic,ngroup,scale,aqcd,aqed,
+     $           buff,u_syst,s_buff,nclus,buffclus)
+         endif
+      enddo
+      write(*,*) 'Found ',nw,' events.'
+      write(*,*) 'Wrote ',i ,' events.'
+      if (scale_to_xsec)then
+         write(*,*) 'Actual xsec ',xsec
+         write(*,*) 'Correct abs xsec ',xsecabs
+         write(*,*) 'Event xsec ', xtot
+      endif
+      write(*,*) 'Events wgts > 1: ', nover
+      write(*,*) '% Cross section > 1: ',xover, xover/xtot*100.
+      neventswritten = i
+      maxwgt = target_wgt
+      if (force_max_wgt.lt.0)then
+         th_maxwgt = target_wgt
+         th_nunwgt = neventswritten
+      endif
+
+ 99   close(lunw)
+      
+c      close(lun)
+      end
+
+      integer function n_unwgted()
+c************************************************************************
+c     Determines the number of unweighted events which have been written
+c************************************************************************
+      implicit none
+c
+c     Parameter
+c
+      include 'genps.inc'
+      include 'nexternal.inc'
+c
+c     Local
+c
+      integer i
+      double precision xtot, sum
+C     
+C     GLOBAL
+C
+      double precision twgt, maxwgt,swgt(maxevents)
+      integer                             lun, nw, itmin
+      common/to_unwgt/twgt, maxwgt, swgt, lun, nw, itmin
+c-----
+c  Begin Code
+c-----
+
+c      write(*,*) 'Sorting ',nw
+      if (nw .gt. 1) call dsort(nw,swgt)
+      sum = 0d0
+      do i=1,nw
+         sum=sum+swgt(i)
+      enddo
+      xtot = 0d0
+      i = nw
+      do while (xtot .lt. sum/100d0 .and. i .gt. 2)    !Allow for 1% accuracy
+         xtot = xtot + swgt(i)
+         i=i-1
+      enddo
+      if (i .lt. nw) i = i+1
+c      write(*,*) 'Found ',nw,' events'
+c      write(*,*) 'Integrated weight',sum
+c      write(*,*) 'Maximum wgt',swgt(nw), swgt(i)
+c      write(*,*) 'Average wgt', sum/nw
+c      write(*,*) 'Unweight Efficiency', (sum/nw)/swgt(i)
+      n_unwgted = sum/swgt(i)
+c      write(*,*) 'Number unweighted ',sum/swgt(i), nw
+      if (nw .ge. maxevents) n_unwgted = -sum/swgt(i)
+      end
+
+
+      subroutine dsort(n,ra)
+      integer n
+      double precision ra(n),rra
+
+      l=n/2+1
+      ir=n
+10    continue
+        if(l.gt.1)then
+          l=l-1
+          rra=ra(l)
+        else
+          rra=ra(ir)
+          ra(ir)=ra(1)
+          ir=ir-1
+          if(ir.eq.1)then
+            ra(1)=rra
+            return
+          endif
+        endif
+        i=l
+        j=l+l
+20      if(j.le.ir)then
+          if(j.lt.ir)then
+            if(dabs(ra(j)).lt.dabs(ra(j+1))) j=j+1
+          endif
+          if(dabs(rra).lt.dabs(ra(j)))then
+            ra(i)=ra(j)
+            i=j
+            j=j+j
+          else
+            j=ir+1
+          endif
+        go to 20
+        endif
+        ra(i)=rra
+      go to 10
+      end
+
       SUBROUTINE write_leshouche(p,wgt,numproc,do_write_events)
 C**************************************************************************
 C     Writes out information for event
@@ -382,20 +913,41 @@ c     Store weight for event
       integer ncells,n,i,j,icell(maxcell),ios
       double precision E,rv(2),theta
       double precision cells(maxcell,4),a(4),w(maxcell),wtot,Emin,Emax
-      double precision area,eps,Em,Ep,s
+      double precision eps,Em,Ep,s
       common/celltable/cells,ncells
+      double precision theta_min,theta_max
       logical fstcall
       data fstcall/.true./
       save fstcall,eps
+      double precision pi
+      parameter (pi=3.1415926d0)
 
+      double precision fac_eps
+      fac_eps=1.5d0
+      
 c     At the first call, read and store the cell parameters from the 
 c     cell_fortran.dat file
       if (fstcall) then
          open(unit=210,file='../cell_fortran.dat',status='old',
      *        err=999)
-c     loop over infile lines until EoF is reached
+         open(unit=215,file='../gen_theta.stat',status='unknown',
+     *        err=999)
+         
+c     The parameter eps play the role of the energy resolution.
+c     Here, it is treated as a dimensional variable. Its value
+c     should be a multiple of the smallest energy interval in the 2D
+c     cell fit (this can be reasonably thought as the precision of the fit). 
+c     This parameter is related to possible error in generation of the theta
+c     angle when no cell corresponds to the given energy value.
+c     The statistics about how many failures and the corresponding
+c     problematic energy values are printed in the file "gen_theta.stat"
+c     The user can set the multiplicative factor: raising it values
+c     should result in a smaller number of failures.
          eps = 1d9
-         ncells=1
+         ncells=1               !total number of cells
+         theta_min = pi/2d0
+         theta_max = 0d0
+c     loop over infile lines until EoF is reached
          do 
             read(210,*,iostat=ios) a(1),a(2),a(3),a(4)
             if (ios.gt.0) then
@@ -410,11 +962,15 @@ c     loop over infile lines until EoF is reached
                do i= 1,ncells
                   if(cells(i,3).lt.eps)  eps=cells(i,3)
                enddo
-               eps= eps/10d0
+               eps= eps*fac_eps
                exit
             else
                cells(ncells,:)= a(:)
                ncells=ncells+1
+
+c     update theta_min, theta_max
+               if(a(2).lt.theta_min) theta_min = a(2)
+               if(a(2)+a(4).gt.theta_max) theta_max = a(2)+a(4)
 
                if(ncells.gt.maxcell) then
                   write(*,*) 'Error: the number of cells of the 2D mesh exceeds
@@ -462,10 +1018,12 @@ c     The weights and their normalization are computed
       enddo
       n=n-1
 
-c     check if something went wrong
-      if (n.eq.0) then 
-         write(*,*) 'Error has occurred with the energy value: ', E
-         stop
+c     check if something went wrong      
+      if (n.eq.0) then
+         write(215,*) 'Error has occurred with the energy value: ', E
+c     in this situation, we generate flat in [theta_min,theta_max]
+         theta = theta_min + rv(1)*(theta_max-theta_min)
+         return         
       endif
 
 c     pick a theta value according to the hit cells and their weights;
@@ -494,7 +1052,7 @@ c     once a cell is selected, a value of theta is taken uniformly inside it
       double precision pi
       parameter (pi=3.1415926d0)
 
-c     input parameter: to be put in a suitable detecto card
+c     input parameter: to be put in a suitable detector card
       d_target_detector = 3804d0
       
       side_x = 45.15d0          !*2d0
@@ -572,3 +1130,4 @@ c     input parameter: to be put in a suitable detecto card
       
       return
       end
+

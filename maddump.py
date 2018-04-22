@@ -8,6 +8,8 @@ import madgraph.various.misc as misc
 import madgraph.various.banner as banner_mod
 import madgraph.iolibs.group_subprocs as group_subprocs
 
+import fit2D_card as fit2D
+
 pjoin = os.path.join
 
 class MadDump(export_v4.ProcessExporterFortranMEGroup):
@@ -31,24 +33,28 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
     def copy_template(self, *args, **opts):
         
         maddump_dir = pjoin(self.mgme_dir, 'PLUGIN/maddump/')
+
+        # Copy the madevent templates
         misc.sprint("copy the associate template")
         super(MadDump, self).copy_template(*args, **opts)
 
+        # Add the PLUGIN templates
         dir_util.copy_tree(pjoin(maddump_dir, 'FITPACK'), 
                            pjoin(self.dir_path, 'Source/FITPACK'))
         
-        #cp(maddump_dir + 'dummy_fct.f',
-        #       self.dir_path + '/SubProcesses/dummy_fct.f')
-        #cp(maddump_dir + 'unwgt.f',
-        #       self.dir_path + '/SubProcesses/unwgt.f')
+        temp_dir= maddump_dir + 'Templates/' 
 
-        cp(maddump_dir + 'meshfitter2D.py',
+        misc.sprint(temp_dir)
+        # cp(temp_dir + 'Cards/fit2D_card.dat',
+        #        self.dir_path + '/Cards/fit2D_card.dat')
+        cp(temp_dir + 'meshfitter2D.py',
                self.dir_path + '/Cards/meshfitter2D.py')
-        cp(maddump_dir + 'lhe-meshfitter.py',
+        cp(temp_dir + 'lhe-meshfitter.py',
                self.dir_path + '/Cards/lhe-meshfitter.py')
-        cp(maddump_dir + 'README_MADDUMP',
+        cp(temp_dir + 'README_MADDUMP',
                self.dir_path + '/Cards/README_MADDUMP')
         
+        # Update the makefile to compile the FITPACK routine
         with open(self.dir_path+'/SubProcesses/makefile') as f:
             text = []
             for line in f:
@@ -57,7 +63,8 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
                     text.append('LINKLIBS += -lfitpack\n')
                 else:
                     text.append(line)
-                    
+
+        # Add/Overwrite some functions in the Fortran code 
         with open(self.dir_path+'/SubProcesses/makefile', "w") as f:
             for line in text:
                 f.write(line)
@@ -72,12 +79,6 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
             ff.remove_routine(template, to_rm, formatting=False)
             ff.writelines(plugin, formatting=False)
             ff.close()
-
-
-    # def get_source_libraries_list(self):
-    #     set_of_lib = super(MadDump, self).get_source_libraries_list()
-    #     set_of_lib.append('$(LIBDIR)libfitpack.$(libext)')
-    #     return set_of_lib
 
 
     def write_source_makefile(self, writer):
@@ -119,20 +120,24 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
     #  create the run_card 
     #===========================================================================
     def create_run_card(self, matrix_elements, history):
-        """ Create the run card under Cards directory """
+        """  """
         run_card = banner_mod.RunCard()
         run_card.remove_all_cut()
         run_card['lpp1'] = 9
 
-        # to do: distinguish the case between a collision with a proton or an electron in the detector(it needs to be fixed, lpp2 is not update automatically in the two different cases)
-        # if run_card['lpp2']  == 1:
-        #     run_card['ebeam2'] = 0.938
-        # else:
-        #     run_card['ebeam2'] = 0.000511
-
         run_card.write(pjoin(self.dir_path, 'Cards', 'run_card_default.dat'))
         run_card.write(pjoin(self.dir_path, 'Cards', 'run_card.dat'))
+
+    #===========================================================================
+    #  create the fit2D_card 
+    #===========================================================================
+    def create_fit2D_card(self):
+        """  """
+        fit2D_card = fit2D.Fit2D_Detector()
         
+        fit2D_card.write(pjoin(self.dir_path, 'Cards', 'run_card_default.dat'))
+        fit2D_card.write(pjoin(self.dir_path, 'Cards', 'run_card.dat'))
+
 
     def link_files_in_SubProcess(self, Ppath):
         """ Create the necessary links in the P* directory path Ppath"""

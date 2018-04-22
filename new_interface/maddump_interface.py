@@ -1,7 +1,7 @@
 import logging
 import os
 
-#import maddm_run_interface as maddm_run_interface
+#import maddm_run_interface as maddm_run_interface
 
 import madgraph.core.diagram_generation as diagram_generation
 import madgraph.interface.master_interface as master_interface
@@ -43,7 +43,8 @@ class MadDump_interface(master_interface.MasterCmd):
     _define_options = ['darkmatter']
     
     # process number to distinguish the different type of matrix element
-    process_tag = {'prod': 900, 
+    process_tag = {'prompt_prod': 100,
+                   'decay': 200;
                    'DIS': 1100,
                    'electron': 1200,
                    'ENS': 1300}
@@ -226,16 +227,7 @@ class MadDump_interface(master_interface.MasterCmd):
                 raise DMError, 'Output command error: the directory %s already exists!' % dirname 
             os.chdir(dirname)
 
-
-        # print(len(self._curr_proc_defs))
-        # print(len(self._curr_matrix_elements))
-        # print(self._curr_matrix_elements)
-        # print(len(self._curr_amps))
-        # # print(self._curr_amps)
-        # print(self._done_export)
-        
-        # exit(-1)
-              
+            
         for proc in self._curr_proc_defs:
             
             if proc['id'] < 1000:
@@ -274,8 +266,8 @@ class MadDump_interface(master_interface.MasterCmd):
     #     else:
     #         return super(MadDM_interface, self).find_output_type(path)
 
+    
     def do_launch(self, line):
-        
         
         args = self.split_arg(line)
         (options, args) = madgraph_interface._launch_parser.parse_args(args)
@@ -283,19 +275,29 @@ class MadDump_interface(master_interface.MasterCmd):
             self.check_launch(args, options)
         options = options.__dict__        
         
-        
-        if args[0] != 'maddm':
-            return super(MadDM_interface, self).do_launch(line)
+
+        # if args[0] != 'maddm':
+        #     return super(MadDM_interface, self).do_launch(line)
+        # else:
+        self._MDM = maddm_run_interface.MADDMRunCmd(dir_path=args[1], options=self.options)
+        self._done_export = (args[1], 'plugin')
+            
+        if options['interactive']:
+            return self.define_child_cmd_interface(self._MDM)
         else:
-            MDM = maddm_run_interface.MADDMRunCmd(dir_path=args[1], options=self.options) 
-            if options['interactive']:              
-                return self.define_child_cmd_interface(MDM)
+            self.define_child_cmd_interface(self._MDM,  interface=False)
+            try:
+                self._MDM.exec_cmd('launch ' + line.replace(args[1], ''))
+            except:
+                self._MDM.exec_cmd('quit')
+                raise
             else:
-                self.define_child_cmd_interface(MDM,  interface=False)
-                MDM.exec_cmd('launch ' + line.replace(args[1], ''))
-                return
+                self._MDM.exec_cmd('quit')
+                self._done_export = (args[1], 'plugin')
+        return
 
-
+            
+            
     def define_multiparticles(self, label, list_of_particles):
         """define a new multiparticle from a particle list (add both particle and anti-particle)"""
         
@@ -313,129 +315,8 @@ class MadDump_interface(master_interface.MasterCmd):
 
 
 
-
-
         
         
-    # def generate_relic(self, excluded_particles=[]):
-    #     """--------------------------------------------------------------------#
-    #     #                                                                      #
-    #     #  This routine generates all the 2 -> 2 annihilation matrix elements. #
-    #     #  The SM particles, BSM particles in self._bsm_final_states, and the  #
-    #     #  DM particles are used as final states.  The initial states are      #
-    #     #  looped over all the different combinations of DM particles.         #
-    #     #--------------------------------------------------------------------"""
-
-    #     #Here we define bsm multiparticle as a special case for exlusion only in the
-    #     #final state. This is different than the standard / notation which will exclude
-    #     #the particles from the propagators as well.
-    #     #Since we use the exluded_particles everywhere, we just use the presence of
-    #     #the bsm in the array to initialize a flag and then remove it from the excluded
-    #     #particles array so as not to conflict with the use in other places.
-    #     self.define_multiparticles('bsm',[p for p in self._curr_model.get('particles')\
-    #                      if abs(p.get('pdg_code')) > 25])
-    #     if 'bsm' in excluded_particles:
-    #         exclude_bsm = True
-    #         while 'bsm' in excluded_particles:
-    #             excluded_particles.remove('bsm')
-    #     else:
-    #         exclude_bsm = False
-
-
-    #     if not self._dm_candidate:
-    #         self.search_dm_candidate(excluded_particles)
-    #         if not self._dm_candidate:
-    #             return
-    #         self.search_coannihilator(excluded=excluded_particles)
-
-
-    #     # Tabulates all the BSM particles so they can be included in the
-    #     # final state particles along with the SM particles.
-        
-    #     #dm_mass = abs(self._curr_model.get_mass(self._dm_candidate[0]))
-    #     #is_lower_mass = lambda p : True #abs(self._curr_model.get_mass(p)) < (1-self.coannihilation_diff)*dm_mass
-        
-    #     ids_veto = [p.get('pdg_code') for p in self._dm_candidate + self._coannihilation]     
-    #     bsm_final_states = [p for p in self._curr_model.get('particles') 
-    #                      if abs(p.get('pdg_code')) > 25 and \
-    #                      (p.get('name') not in excluded_particles or p.get('antiname') not in excluded_particles) and\
-    #                      p.get('width') != 'ZERO' and
-    #                      abs(p.get('pdg_code')) not in ids_veto]
-    #     if not exclude_bsm:
-    #         if bsm_final_states:
-    #             logger.info("DM is allowed to annihilate into the following BSM particles: %s",
-    #                      ' '.join([p.get('name') for p in bsm_final_states]))
-    #             logger.info("use generate relic_density / X to forbid the decay the annihilation to X")
-    #             logger.info("if you want to forbid DM to annihilate into BSM particles do relic_density / bsm")
-    #     else:
-    #         bsm_final_states=[]
-
-    #     # Set up the initial state multiparticles that contain the particle 
-    #     #and antiparticle
-    #     for i,dm in enumerate(self._dm_candidate + self._coannihilation):
-    #         self.define_multiparticles('dm_particle_%s' % i,  [dm])
-    #         #self.do_display('multiparticles')
-
-    #     self.define_multiparticles('dm_particles', self._dm_candidate+self._coannihilation)
-
-    #     self.do_display('multiparticles')
-    #     sm_pdgs = range(1, 7) + range(11, 17) + range(21, 26) #quarks/leptons/bosons
-    #     sm_part = [self._curr_model.get_particle(pdg) for pdg in sm_pdgs]
-
-    #     self.define_multiparticles('fs_particles', sm_part +bsm_final_states)
-
-    #     # generate annihilation diagram
-    #     coupling = "QED<=4 SIEFFS=0 SIEFFF=0 SIEFFV=0 SDEFFF=0 SDEFFV=0"
-    #     if excluded_particles:
-    #         proc = "dm_particles dm_particles > fs_particles fs_particles / %s %s  @DM2SM" \
-    #                 % (' '.join(excluded_particles), coupling)
-    #     else:
-    #         proc = "dm_particles dm_particles > fs_particles fs_particles %s @DM2SM" \
-    #                %(coupling)  #changed here
-                   
-    #     self.do_generate(proc)
-
-    #     # Generate all the DM -> DM processes
-    #     nb_dm = len(self._dm_candidate + self._coannihilation)
-    #     for i in xrange(nb_dm):
-    #         for j in xrange(i,nb_dm):
-    #             if  excluded_particles:
-    #                 proc = "DM_particle_%s DM_particle_%s > dm_particles dm_particles / %s %s @DM2DM"\
-    #                    % (i,j,' '.join(excluded_particles), coupling)
-    #             else:
-    #                 proc = "DM_particle_%s DM_particle_%s > dm_particles dm_particles %s @DM2DM"\
-    #                    % (i,j, coupling)
-    #             try:
-    #                 self.do_add('process %s' % proc)
-    #             except (self.InvalidCmd,diagram_generation.NoDiagramException) :
-    #                 continue
-    #     # Get the matrix elements and make sure that we don't have any pure 
-    #     #scattering processes
-    #     for amp in self._curr_amps[:]:
-    #         if amp.get('process').get('id') != self.process_tag['DM2DM']:
-    #             continue
-    #         if set(amp.get('process').get_initial_ids()) == (set(amp.get('process').get_final_ids())):
-    #             self._curr_amps.remove(amp)
-
-
-        # Generate all the DM particles scattering off of the thermal background and
-        # change to a different DM species (again, no pure scatterings)
-
-        # for i in xrange(nb_dm):
-        #     for j in xrange(nb_dm):
-        #         if i == j:
-        #             continue
-        #         if excluded_particles:
-        #             proc = "DM_particle_%s sm_particles > DM_particle_%s sm_particles / %s %s @DMSM"\
-        #                % (i,j,' '.join(excluded_particles), coupling)
-        #         else:
-        #             proc = "DM_particle_%s sm_particles > DM_particle_%s sm_particles %s @DMSM"\
-        #                % (i,j, coupling)
-        #         try:
-        #             self.do_add('process %s' % proc)
-        #         except (self.InvalidCmd,diagram_generation.NoDiagramException) :
-        #             continue
-
     # def generate_interactions(self, excluded_particles=[]):
     #     """User level function which performs direct detection functions        
     #     """

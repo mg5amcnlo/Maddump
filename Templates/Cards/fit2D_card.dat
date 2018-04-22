@@ -1,0 +1,40 @@
+#*********************************************************************
+#                            MadDump                                 *
+#                                                                    *
+#                        fit2D_card.dat                              *
+#                                                                    *
+#  This file is used to set the parameters for the 2D fit            *
+#                                                                    *
+#  Some notation/conventions:                                        *
+#                                                                    *
+#   Lines starting with a '# ' are info or comments                  *
+#                                                                    *
+#   mind the format:   value    = variable     ! comment             *
+#                                                                    *
+#*********************************************************************
+#
+#*********************                                                 
+# Fitting Parameters
+#*********************                                               
+#                                                                    
+#*********************************************************************
+# Detector parameters
+#*********************************************************************
+   %(flux_norm)s         =  flux_norm ! Overall flux normalization 
+   %(d_target_detector)s =  d_target_detector ! Distance between the target and the detector in cm 
+   %(total_mass)s        =  total mass ! Detector total mass in g
+#*********************************************************************
+# Cuts on the detector shape 
+#*********************************************************************
+     %(xc)s     =  xc ! x coordinate central point wrt the beam axis
+     %(yc)s     =  yc ! y coordinate central point wrt the beam axis
+     
+     %(cilinder)s   =  cilinder ! True = select cylindrical geometry 
+     %(theta_min)s     =  theta_min ! >= 0
+     %(theta_max)s     =  theta_max ! <= pi/2
+
+     %(parallepiped)s   =  parallepiped ! True = select parallepiped geometry 
+     %(x_side)s     =  x_side ! in cm
+     %(y_side)s     =  y_side ! in cm 
+
+     %(depth)s     =  depth ! both for cylinder and parallepiped
