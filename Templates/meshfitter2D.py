@@ -309,120 +309,120 @@ class CellHistogram(object):
         width = cell.width
         height = cell.height
 
-        # #        twocells= False
-        cell.pts.sort()
-        wgt = cell.weight
-        loop=True
-        while(loop):
-            weight=0
-            for pt in cell.pts:
-                weight += pt.weight
-                if (weight > 0.95*wgt):
-                    isplit = cell.pts.index(pt)
-                    break
-            if ( (cell.pts[isplit-1].x-cell.corner.x)  < .6*width ):
-                #print((cell.pts[isplit].x-cell.corner.x),cell.width)
-                width= cell.pts[isplit-1].x-cell.corner.x
-                wgt=0.95*wgt
-            else:
-                loop=False
+#         # #        twocells= False
+#         cell.pts.sort()
+#         wgt = cell.weight
+#         loop=True
+#         while(loop):
+#             weight=0
+#             for pt in cell.pts:
+#                 weight += pt.weight
+#                 if (weight > 0.95*wgt):
+#                     isplit = cell.pts.index(pt)
+#                     break
+#             if ( (cell.pts[isplit-1].x-cell.corner.x)  < .6*width ):
+#                 #print((cell.pts[isplit].x-cell.corner.x),cell.width)
+#                 width= cell.pts[isplit-1].x-cell.corner.x
+#                 wgt=0.95*wgt
+#             else:
+#                 loop=False
 
-        loop=True
-#        wgt = cell.weight
-        while(loop):
-            weight=0
-            for pt in cell.pts[::-1]:
-                weight += pt.weight
-                if (weight > 0.95*wgt):
-                    isplit = cell.pts.index(pt)
-                    break
-            if ( (width+corner_x-cell.pts[isplit-1].x)  < .6*width ):
-                #print((cell.pts[isplit].x-cell.corner.x),cell.width)
-                #width= cell.pts[isplit-1].x-cell.corner.x
-                width = width+corner_x-cell.pts[isplit-1].x
-                corner_x = cell.pts[isplit-1].x
-                wgt=0.95*wgt
-            else:
-                loop=False
+#         loop=True
+# #        wgt = cell.weight
+#         while(loop):
+#             weight=0
+#             for pt in cell.pts[::-1]:
+#                 weight += pt.weight
+#                 if (weight > 0.95*wgt):
+#                     isplit = cell.pts.index(pt)
+#                     break
+#             if ( (width+corner_x-cell.pts[isplit-1].x)  < .6*width ):
+#                 #print((cell.pts[isplit].x-cell.corner.x),cell.width)
+#                 #width= cell.pts[isplit-1].x-cell.corner.x
+#                 width = width+corner_x-cell.pts[isplit-1].x
+#                 corner_x = cell.pts[isplit-1].x
+#                 wgt=0.95*wgt
+#             else:
+#                 loop=False
 
                 
-        # #d1 = cell.pts[1].x-cell.corner.x
-        # #d2 = cell.width - cell.pts[-1].x
-        # d12 = cell.pts[-1].x - cell.pts[-2].x
-        # d12ref = cell.pts[-2].x - cell.corner.x
+#         # #d1 = cell.pts[1].x-cell.corner.x
+#         # #d2 = cell.width - cell.pts[-1].x
+#         # d12 = cell.pts[-1].x - cell.pts[-2].x
+#         # d12ref = cell.pts[-2].x - cell.corner.x
         
-        # # if d1 > cell.width/2.:
-        # #     corner_x = cell.pts[1].x
-        # #     corner_y = cell.corner.y
-        # #     width = cell.width - cell.pts[1].x
-        # #     height = cell.height
-        # # if d2 > cell.width/2.:
-        # #     corner_x = cell.corner.x
-        # #     corner_y = cell.corner.y
-        # #     width = cell.pts[-1].x
-        # #     height = cell.height
+#         # # if d1 > cell.width/2.:
+#         # #     corner_x = cell.pts[1].x
+#         # #     corner_y = cell.corner.y
+#         # #     width = cell.width - cell.pts[1].x
+#         # #     height = cell.height
+#         # # if d2 > cell.width/2.:
+#         # #     corner_x = cell.corner.x
+#         # #     corner_y = cell.corner.y
+#         # #     width = cell.pts[-1].x
+#         # #     height = cell.height
 
-        # if d12>2*d12ref:
-        #     width = cell.pts[-2].x - cell.corner.x 
+#         # if d12>2*d12ref:
+#         #     width = cell.pts[-2].x - cell.corner.x 
                 
-        for pt in cell.pts:
-            pt.exchange_xy()
-        cell.pts.sort()
-        for pt in cell.pts:
-            pt.exchange_xy()
+#         for pt in cell.pts:
+#             pt.exchange_xy()
+#         cell.pts.sort()
+#         for pt in cell.pts:
+#             pt.exchange_xy()
 
-        loop=True
-        wgt = cell.weight
-        while(loop):
-            weight=0
-            for pt in cell.pts:
-                weight += pt.weight
-                if (weight > 0.95*wgt):
-                    isplit = cell.pts.index(pt)
-                    break
-            if ( (cell.pts[isplit-1].y-cell.corner.y) < .6*height ):
-                height= cell.pts[isplit-1].y-cell.corner.y
-                wgt=0.95*wgt
-            else:
-                loop=False
+#         loop=True
+#         wgt = cell.weight
+#         while(loop):
+#             weight=0
+#             for pt in cell.pts:
+#                 weight += pt.weight
+#                 if (weight > 0.95*wgt):
+#                     isplit = cell.pts.index(pt)
+#                     break
+#             if ( (cell.pts[isplit-1].y-cell.corner.y) < .6*height ):
+#                 height= cell.pts[isplit-1].y-cell.corner.y
+#                 wgt=0.95*wgt
+#             else:
+#                 loop=False
 
                                
-        loop=True
-#        wgt = cell.weight
-        while(loop):
-            weight=0
-            for pt in cell.pts[::-1]:
-                weight += pt.weight
-                if (weight > 0.95*wgt):
-                    isplit = cell.pts.index(pt)
-                    break
-            if ( (height+corner_y - cell.pts[isplit-1].y) < .6*height ):
-                height= height+corner_y - cell.pts[isplit-1].y
-                corner_y = cell.pts[isplit-1].y
-                wgt=0.95*wgt
-            else:
-                loop=False
+#         loop=True
+# #        wgt = cell.weight
+#         while(loop):
+#             weight=0
+#             for pt in cell.pts[::-1]:
+#                 weight += pt.weight
+#                 if (weight > 0.95*wgt):
+#                     isplit = cell.pts.index(pt)
+#                     break
+#             if ( (height+corner_y - cell.pts[isplit-1].y) < .6*height ):
+#                 height= height+corner_y - cell.pts[isplit-1].y
+#                 corner_y = cell.pts[isplit-1].y
+#                 wgt=0.95*wgt
+#             else:
+#                 loop=False
 
-        # #d1 = cell.pts[1].y-cell.corner.y
-        # #d2 = cell.height - cell.pts[-1].y
+#         # #d1 = cell.pts[1].y-cell.corner.y
+#         # #d2 = cell.height - cell.pts[-1].y
 
-        # d12 = cell.pts[-1].y - cell.pts[-2].y
-        # d12ref = cell.pts[-2].y - cell.corner.y
+#         # d12 = cell.pts[-1].y - cell.pts[-2].y
+#         # d12ref = cell.pts[-2].y - cell.corner.y
 
-        # # if d1 > cell.height/2.:
-        # #     if d1==dmax:
-        # #         corner_x = cell.corner.x
-        # #         corner_y = cell.pts[1].y
-        # #         width = cell.width
-        # #         height = cell.height - cell.pts[1].y
-        # #     elif d2==dmax:
-        # #         corner_x = cell.corner.x
-        # #         corner_y = cell.corner.y
-        # #         width = cell.width
-        # #         height = cell.pts[-1].y
+#         # # if d1 > cell.height/2.:
+#         # #     if d1==dmax:
+#         # #         corner_x = cell.corner.x
+#         # #         corner_y = cell.pts[1].y
+#         # #         width = cell.width
+#         # #         height = cell.height - cell.pts[1].y
+#         # #     elif d2==dmax:
+#         # #         corner_x = cell.corner.x
+#         # #         corner_y = cell.corner.y
+#         # #         width = cell.width
+#         # #         height = cell.pts[-1].y
 
-        # if d12>2*d12ref:
-        #     height = cell.pts[-2].y - cell.corner.y 
+#         # if d12>2*d12ref:
+#         #     height = cell.pts[-2].y - cell.corner.y 
                     
         s = str(corner_x) + "\t" + str(corner_y) + "\t" + \
             str(width) + "\t" + str(height) + "\n" 

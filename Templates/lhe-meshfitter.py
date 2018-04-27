@@ -22,8 +22,8 @@
 
 if '__main__' == __name__:
     import sys
-    sys.path.append('../../')
-    sys.path.append('../../madgraph/various')
+    sys.path.append('../../../')
+    sys.path.append('../../../madgraph/various')
 
 import os
 import logging
@@ -59,14 +59,15 @@ th_max=.0118
 xc = 0.
 yc = 0.
 #side in cm
-side_x=37.45*2
-side_y=45.15*2
-xmin = xc - side_x/2.
-xmax = xc + side_x/2.
-ymin = yc - side_y/2.
-ymax = yc + side_y/2.
+x_side=37.45*2
+y_side=45.15*2
+depth = 321.0
+xmin = xc - x_side/2.
+xmax = xc + x_side/2.
+ymin = yc - y_side/2.
+ymax = yc + y_side/2.
 
-ncores=8
+ncores=4
 
 def heaviside(x):
     if x>0:
@@ -74,12 +75,58 @@ def heaviside(x):
     else:
         return 0
 
-def eff_function(E,theta,cphi,sphi):
-    x = d_target_detector*np.sin(theta)*cphi
-    y = d_target_detector*np.sin(theta)*sphi
-    return heaviside(x-xmin)*heaviside(xmax-x)*heaviside(y-ymin)*heaviside(ymax-y)
+def max_travel_distance(theta,cphi,sphi):
 
-ncores=8
+    sth = np.sin(theta)
+    # cphi = np.cos(phi)
+    # sphi = np.sin(phi)
+    z1 = d_target_detector
+    z2 = z1 + depth
+
+    x1 = z1*sth*cphi
+    y1 = z1*sth*sphi
+    
+    in_z1 = heaviside(x1-xmin)*heaviside(xmax-x1)*heaviside(y1-ymin)*heaviside(ymax-y1)
+    if in_z1 == 0.:
+        return 0.
+
+    x2 = z2*sth*cphi
+    y2 = z2*sth*sphi
+
+    in_z2 = heaviside(x2-xmin)*heaviside(xmax-x2)*heaviside(y2-ymin)*heaviside(ymax-y2)
+
+    if in_z2 != 0.:
+        return np.sqrt((x2-x1)**2+(y2-y1)**2+depth**2)
+
+    if x2 > xmax:
+        x3 =  xmax
+        y3 =  xmax*sphi/cphi
+        z3 =  xmax/sth/cphi 
+        return np.sqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
+    if x2 < xmin:
+        x3 =  xmin          
+        y3 =  xmin*sphi/cphi
+        z3 =  xmin/sth/cphi 
+        return np.sqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
+    if y2 > ymax:
+        x3 =  ymax*cphi/sphi
+        y3 =  ymax
+        z3 =  ymax/sth/sphi
+        return np.sqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
+    if y2 < ymin:
+        x3 =  ymin*cphi/sphi
+        y3 =  ymin
+        z3 =  ymin/sth/sphi
+        return np.sqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
+
+def eff_function(E,theta,cphi,sphi):
+    return max_travel_distance(theta,cphi,sphi)*np.cos(theta)/depth
+
+
+# def eff_function(E,theta,cphi,sphi):
+#     x = d_target_detector*np.sin(theta)*cphi
+#     y = d_target_detector*np.sin(theta)*sphi
+#     return heaviside(x-xmin)*heaviside(xmax-x)*heaviside(y-ymin)*heaviside(ymax-y)
 
 # def eff_function(E,theta):
 #     return heaviside(theta-th_min)*heaviside(th_max-theta)
@@ -104,7 +151,6 @@ for event in lhe:
             if particle.pid in DM_pdgcode:
                 p = lhe_parser.FourMomentum(particle)
                 theta = np.arccos(p.pz/p.norm)
-                # data.append(WeightedPoint(p.E,theta,xsec/nevt*eff_function(p.E,theta)))
                 cphi = p.px/np.sqrt(p.px**2+p.py**2)
                 sphi = p.py/np.sqrt(p.px**2+p.py**2)
                 data.append(WeightedPoint(p.E,theta,xsec/nevt*eff_function(p.E,theta,cphi,sphi)))
@@ -139,7 +185,7 @@ hist2D = CellHistogram(Point(E_min,theta_min),E_max-E_min,theta_max-theta_min,50
 hist2D.add_pts(data)
 hist2D.fit(ncores=ncores)
 #hist2D.export_histogram('cell_fortran.dat')
-#plot('cell_fortran.dat')
+plot('cell_fortran.dat')
 
 # Generation of the 1D distribution integrated in angles
 # and of the output ehist.dat

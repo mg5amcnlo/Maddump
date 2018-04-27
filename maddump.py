@@ -25,7 +25,7 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
     grouped_mode = 'madevent'    
     # if no grouping on can decide to merge uu~ and u~u anyway:
     sa_symmetry = False 
-
+    
     def __init__(self, *args, **opts):
         misc.sprint("Initialise MadDump")
         return super(MadDump, self).__init__(*args, **opts)
@@ -44,9 +44,10 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
         
         temp_dir= maddump_dir + 'Templates/' 
 
-        misc.sprint(temp_dir)
         # cp(temp_dir + 'Cards/fit2D_card.dat',
         #        self.dir_path + '/Cards/fit2D_card.dat')
+        cp(temp_dir + 'Inc/fit2D.inc',
+               self.dir_path + '/Source/fit2D.inc')
         cp(temp_dir + 'meshfitter2D.py',
                self.dir_path + '/Cards/meshfitter2D.py')
         cp(temp_dir + 'lhe-meshfitter.py',
@@ -68,14 +69,27 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
         with open(self.dir_path+'/SubProcesses/makefile', "w") as f:
             for line in text:
                 f.write(line)
-        
+
+        #modiy existing fortran code in SubProcess
         files = ["dummy_fct.f","unwgt.f","reweight.f"]
-        remove_list = [['get_dummy_x1','get_dummy_x1_x2'],["write_leshouche"],["setclscales"]]
+        remove_list = [['get_dummy_x1','get_dummy_x1_x2'],["store_events","write_leshouche"],["setclscales"]]
         for name, to_rm in zip(files, remove_list):
             template = open(pjoin(self.dir_path, "SubProcesses", name),"r").read()
             plugin = open(pjoin(self.mgme_dir, "PLUGIN", "maddump", name),"r").read()
             misc.sprint(pjoin(self.mgme_dir, "PLUGIN", "maddump", name))
             ff = writers.FortranWriter(pjoin(self.dir_path, "SubProcesses", name))
+            ff.remove_routine(template, to_rm, formatting=False)
+            ff.writelines(plugin, formatting=False)
+            ff.close()
+
+        #modiy existing fortran code in Source
+        files = ["rw_events.f"]
+        remove_list = [["read_event","write_event_to_stream","write_event"]]
+        for name, to_rm in zip(files, remove_list):
+            template = open(pjoin(self.dir_path, "Source", name),"r").read()
+            plugin = open(pjoin(self.mgme_dir, "PLUGIN", "maddump", name),"r").read()
+            misc.sprint(pjoin(self.mgme_dir, "PLUGIN", "maddump", name))
+            ff = writers.FortranWriter(pjoin(self.dir_path, "Source", name))
             ff.remove_routine(template, to_rm, formatting=False)
             ff.writelines(plugin, formatting=False)
             ff.close()
@@ -99,7 +113,26 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
             writer.write('\tcd FITPACK; make clean; cd ..\n')
             
         return replace_dict
+
     
+    def make_source_links(self):
+        """ Create the links from the files in sources """
+
+        ln(self.dir_path + '/Source/fit2D.inc', self.dir_path + '/SubProcesses', log=False)
+        return super(MadDump, self).make_source_links()
+            
+    def link_files_in_SubProcess(self, Ppath):
+        """ Create the necessary links in the P* directory path Ppath"""
+
+        #import ehist.dat and cell_frotran.dat into Subprocesses/P
+        ln(self.dir_path + '/Cards/ehist.dat', cwd=Ppath)
+        ln(self.dir_path + '/Cards/cell_fortran.dat', cwd=Ppath)
+
+        # import fit2D.in into Subprocesses/P
+        ln('../fit2D.inc', cwd=Ppath)
+        super(MadDump, self).link_files_in_SubProcess(Ppath)
+    
+
     def pass_information_from_cmd(self, cmd):
         """pass information from the command interface to the exporter.
            Please do not modify any object of the interface from the exporter.
@@ -108,6 +141,8 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
         return super(MadDump, self).pass_information_from_cmd(cmd)
         
     def finalize(self,*args, **opts):
+
+        self.create_fit2D_card()
         
         from madgraph import MG5DIR    
         filename = os.path.join(self.cmd._export_dir, 'Cards', 'me5_configuration.txt')
@@ -133,18 +168,8 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
     #===========================================================================
     def create_fit2D_card(self):
         """  """
-        fit2D_card = fit2D.Fit2D_Detector()
+        fit2D_card = fit2D.Fit2DCard()
         
-        fit2D_card.write(pjoin(self.dir_path, 'Cards', 'run_card_default.dat'))
-        fit2D_card.write(pjoin(self.dir_path, 'Cards', 'run_card.dat'))
+        fit2D_card.write(pjoin(self.dir_path, 'Cards', 'fit2D_card_default.dat'))
+        fit2D_card.write(pjoin(self.dir_path, 'Cards', 'fit2D_card.dat'))
 
-
-    def link_files_in_SubProcess(self, Ppath):
-        """ Create the necessary links in the P* directory path Ppath"""
-
-        #import ehist.dat and cell_frotran.dat into Subprocesses/P
-        ln(self.dir_path + '/Cards/ehist.dat', cwd=Ppath)
-        ln(self.dir_path + '/Cards/cell_fortran.dat', cwd=Ppath)
-
-        super(MadDump, self).link_files_in_SubProcess(Ppath)
-    
