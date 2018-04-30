@@ -102,7 +102,7 @@ c
       th_maxwgt = dabs(swgt(i))
       if ( force_max_wgt.lt.0)then
          target_wgt = dabs(swgt(i))
-      else if (.not.scale_to_xsec) then
+      elseif (.not.scale_to_xsec) then
          target_wgt = force_max_wgt / xscale
       else
          stop 1
@@ -296,6 +296,9 @@ c      data ncolalt/maxamps*0/
       data AlreadySetInBiasModule/.False./
 
       include 'symswap.inc'
+
+      include 'fit2D.inc'
+      include '../../Source/fit2D_card.inc'
 C-----
 C  BEGIN CODE
 C-----
@@ -432,14 +435,21 @@ c     histograms flux. The azimuthal angle is set at random.
 
             rv(1)=ran1(iseed+2)
             rv(2)=ran1(iseed+2)
-            call pickphi(theta,rv,phi)
-c            phi = 2d0*pi*ran1(iseed+3)
-c            write(230,*) theta,dcos(phi),dsin(phi)
-            travel_dist = max_travel_distance(theta,dcos(phi),dsin(phi))
-     &           *ran1(iseed+3)
+            if(cylinder) then
+               phi = 2d0*pi*rv(1)
+            elseif (parallelepiped) then
+               call pickphi(theta,rv,phi)
+            endif
 
-            write(*,*) max_travel_distance(theta,dcos(phi),dsin(phi))
-     &                  ,travel_dist
+c start debug ---            
+c            write(230,*) theta,dcos(phi),dsin(phi)
+c            travel_dist = max_travel_distance(theta,dcos(phi),dsin(phi))
+c     &           *ran1(iseed+3)
+c
+c            write(*,*) max_travel_distance(theta,dcos(phi),dsin(phi))
+c     &                  ,travel_dist
+c end debug ---
+            
 c     Rotate the event:
 c     pboost is now the reference 4-vector for the rotation
 c     it corresponds to the rotated dark matter 4-vector 
@@ -738,26 +748,23 @@ c     once a cell is selected, a value of theta is taken uniformly inside it
 *     extracts an azimuthal angle (phi) keeping the correlations theta-phi
 *     for the case of a rectangular hit surface. 
       implicit none
-      real * 8 rv(2),theta,phi
-      real * 8 d_target_detector, side_x,side_y
+      include 'fit2D.inc'
+      real * 8 rv(2),theta,phi,x_side_on2,y_side_on2
       real * 8 radius,phi0,phi1,phi_min,phi_max
       double precision pi
       parameter (pi=3.1415926d0)
-
-c     input parameter: to be put in a suitable detector card
-      d_target_detector = 3804d0
       
-      side_x = 45.15d0          !*2d0
-      side_y = 37.45d0          !*2d0
+      x_side_on2 = x_side/2d0
+      y_side_on2 = y_side/2d0
       
       radius = d_target_detector*dsin(theta)
       
-      if (side_y .gt. side_x) then
+      if (y_side_on2 .gt. x_side_on2) then
          
-         if(radius.le.side_x) then 
+         if(radius.le.x_side_on2) then 
             phi = 2d0*pi*rv(1)
-         else if (radius.le.side_y) then
-            phi0 = dacos(side_x/radius)
+         else if (radius.le.y_side_on2) then
+            phi0 = dacos(x_side_on2/radius)
             if (rv(1).lt.0.5d0) then
                phi_min = phi0
                phi_max = pi-phi0
@@ -767,8 +774,8 @@ c     input parameter: to be put in a suitable detector card
             endif
             phi = phi_min + rv(2)*(phi_max-phi_min)
          else
-            phi0 = dacos(side_x/radius)
-            phi1 = dasin(side_y/radius)
+            phi0 = dacos(x_side_on2/radius)
+            phi1 = dasin(y_side_on2/radius)
             if (rv(1) .lt.0.25d0) then
                phi_min = phi0 
                phi_max = phi1
@@ -787,10 +794,10 @@ c     input parameter: to be put in a suitable detector card
          
       else
          
-         if(radius.le.side_y) then 
+         if(radius.le.y_side_on2) then 
             phi = 2d0*pi*rv(1)
-         else if (radius.lt.side_x) then
-            phi0 = dasin(side_y/radius)
+         else if (radius.lt.x_side_on2) then
+            phi0 = dasin(y_side_on2/radius)
             if (rv(1).lt.0.5d0) then
                phi_min = pi-phi0
                phi_max = pi+phi0
@@ -801,8 +808,8 @@ c     input parameter: to be put in a suitable detector card
             phi = phi_min + rv(2)*(phi_max-phi_min)
             if (phi.lt.0d0) phi = 2d0*pi+phi
          else
-            phi0 = dacos(side_x/radius)
-            phi1 = dasin(side_y/radius)
+            phi0 = dacos(x_side_on2/radius)
+            phi1 = dasin(y_side_on2/radius)
             if (rv(1) .lt.0.25d0) then
                phi_min = phi0 
                phi_max = phi1
@@ -838,22 +845,16 @@ c     input parameter: to be put in a suitable detector card
       
       real *8 function max_travel_distance(theta,cphi,sphi)
       implicit none
+      include 'fit2D.inc'
       real * 8 theta,cphi,sphi
       real * 8 sth,z1,z2,x1,y1,x2,y2,in_z1,in_z2,x3,y3,z3
       real * 8 heaviside,xmax,xmin,ymax,ymin 
-      real * 8 d_target_detector,side_x,side_y,depth
       
-c     input parameter: to be put in a suitable detector card
-      d_target_detector = 3804d0
+      xmax = 0.5d0 * x_side 
+      xmin = -0.5d0 * x_side 
       
-      side_x = 45.15d0*2d0
-      side_y = 37.45d0*2d0
-      depth = 321.0
-      xmax = 0.5d0 * side_x 
-      xmin = -0.5d0 * side_x 
-      
-      ymax = 0.5d0 * side_y 
-      ymin = -0.5d0 * side_y 
+      ymax = 0.5d0 * y_side 
+      ymin = -0.5d0 * y_side 
       
       sth = dsin(theta)
       z1 = d_target_detector
@@ -864,8 +865,6 @@ c     input parameter: to be put in a suitable detector card
       
       in_z1 = heaviside(x1-xmin)*heaviside(xmax-x1)
      &     *heaviside(y1-ymin)*heaviside(ymax-y1)
-      write(*,*) '*****'
-      write(*,*) x1,y1,in_z1
       
       if (in_z1 .eq. 0d0) then
          max_travel_distance =0d0
@@ -877,8 +876,6 @@ c     input parameter: to be put in a suitable detector card
 
       in_z2 = heaviside(x2-xmin)*heaviside(xmax-x2)
      &       *heaviside(y2-ymin)*heaviside(ymax-y2)
-
-      write(*,*) x2,y2,in_z2
 
       if (in_z2 .ne. 0d0) then
          max_travel_distance = dsqrt((x2-x1)**2+(y2-y1)**2+depth**2)

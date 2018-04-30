@@ -28,8 +28,8 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
     
     def __init__(self, *args, **opts):
         misc.sprint("Initialise MadDump")
-        return super(MadDump, self).__init__(*args, **opts)
-
+        super(MadDump, self).__init__(*args, **opts)
+        
     def copy_template(self, *args, **opts):
         
         maddump_dir = pjoin(self.mgme_dir, 'PLUGIN/maddump/')
@@ -48,10 +48,10 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
         #        self.dir_path + '/Cards/fit2D_card.dat')
         cp(temp_dir + 'Inc/fit2D.inc',
                self.dir_path + '/Source/fit2D.inc')
-        cp(temp_dir + 'meshfitter2D.py',
-               self.dir_path + '/Cards/meshfitter2D.py')
-        cp(temp_dir + 'lhe-meshfitter.py',
-               self.dir_path + '/Cards/lhe-meshfitter.py')
+        #cp(temp_dir + 'meshfitter2D.py',
+        #       self.dir_path + '/Cards/meshfitter2D.py')
+        #cp(temp_dir + 'lhe-meshfitter.py',
+        #       self.dir_path + '/Cards/lhe-meshfitter.py')
         cp(temp_dir + 'README_MADDUMP',
                self.dir_path + '/Cards/README_MADDUMP')
         
@@ -75,8 +75,8 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
         remove_list = [['get_dummy_x1','get_dummy_x1_x2'],["store_events","write_leshouche"],["setclscales"]]
         for name, to_rm in zip(files, remove_list):
             template = open(pjoin(self.dir_path, "SubProcesses", name),"r").read()
-            plugin = open(pjoin(self.mgme_dir, "PLUGIN", "maddump", name),"r").read()
-            misc.sprint(pjoin(self.mgme_dir, "PLUGIN", "maddump", name))
+            plugin = open(pjoin(self.mgme_dir, "PLUGIN", "maddump", "Templates",name),"r").read()
+            misc.sprint(pjoin(self.mgme_dir, "PLUGIN", "maddump", "Templates",name))
             ff = writers.FortranWriter(pjoin(self.dir_path, "SubProcesses", name))
             ff.remove_routine(template, to_rm, formatting=False)
             ff.writelines(plugin, formatting=False)
@@ -87,8 +87,8 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
         remove_list = [["read_event","write_event_to_stream","write_event"]]
         for name, to_rm in zip(files, remove_list):
             template = open(pjoin(self.dir_path, "Source", name),"r").read()
-            plugin = open(pjoin(self.mgme_dir, "PLUGIN", "maddump", name),"r").read()
-            misc.sprint(pjoin(self.mgme_dir, "PLUGIN", "maddump", name))
+            plugin = open(pjoin(self.mgme_dir, "PLUGIN", "maddump", "Templates",name),"r").read()
+            misc.sprint(pjoin(self.mgme_dir, "PLUGIN", "maddump", "Templates",name))
             ff = writers.FortranWriter(pjoin(self.dir_path, "Source", name))
             ff.remove_routine(template, to_rm, formatting=False)
             ff.writelines(plugin, formatting=False)
@@ -138,6 +138,8 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
            Please do not modify any object of the interface from the exporter.
         """
         self.cmd = cmd
+        self.proc_characteristic['DM'] = cmd._dm_candidate[0]['pdg_code']
+        self.proc_characteristic['BSM_model'] = cmd._curr_model.get('modelpath')
         return super(MadDump, self).pass_information_from_cmd(cmd)
         
     def finalize(self,*args, **opts):

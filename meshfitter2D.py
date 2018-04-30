@@ -1,9 +1,14 @@
 from copy import copy, deepcopy
-from numpy import sqrt,loadtxt,log,transpose
+import numpy as np
 from random import randint 
 import multiprocessing
-from os import remove
+import os 
 
+pjoin = os.path.join
+
+import fit2D_card as fit2D
+import madgraph.various.banner as banner_mod
+import madgraph.various.lhe_parser as lhe_parser
 
 def plot (file,nrun=-1):
     """ Plot the canvas with the 2D mesh."""
@@ -11,7 +16,7 @@ def plot (file,nrun=-1):
     from matplotlib.collections import PatchCollection
     from matplotlib.patches import Rectangle
 
-    x,y,width,height = loadtxt(file, unpack = True)
+    x,y,width,height = np.loadtxt(file, unpack = True)
     
     fig, ax = plt.subplots()
 
@@ -156,7 +161,7 @@ class Cell (object):
         tmp = 0 
         for pt in self.pts:
             tmp += pt.weight**2
-        return sqrt(tmp)
+        return np.sqrt(tmp)
         
     def split_vertically(self,xsplit,x1=0,x2=0):
         """ Divide a cell into two new cells with a vertical line 
@@ -444,7 +449,7 @@ class CellHistogram(object):
             
             if ncores in [2**j for j in range(1,10)]:
                 canvas.append(local_canvas)
-                n = int(log(ncores)/log(2))
+                n = int(np.log(ncores)/np.log(2))
                 if (n%2==0):
                     for i in range(n/2):
                         for cell in canvas:
@@ -541,7 +546,7 @@ class CellHistogram(object):
                 with open(fname) as infile:
                     for line in infile:
                         outfile.write(line)
-                remove(fname)
+                os.remove(fname)
 
     
     def combine_result_1D_x(self,ncores):          
@@ -552,14 +557,14 @@ class CellHistogram(object):
                 with open(fname) as infile:
                     for line in infile:
                         outfile.write(line)
-                remove(fname)
+                os.remove(fname)
 
         out = open('ehist.dat', 'w')
-        tmp = loadtxt(filetmp, unpack = True)
-        tmp_T = transpose(tmp)
+        tmp = np.loadtxt(filetmp, unpack = True)
+        tmp_T = np.transpose(tmp)
         sort = tmp_T[tmp_T[:,0].argsort()]
         
-        x,y,width,height = loadtxt('cell_fortran.dat', unpack = True)
+        x,y,width,height = np.loadtxt('cell_fortran.dat', unpack = True)
 
         xmin=min(x)
         if xmin > sort[0,0]:
@@ -573,7 +578,7 @@ class CellHistogram(object):
         for line in sort:
             out.write(str(line)[1:-1]+"\n")
 
-        remove(filetmp)
+        os.remove(filetmp)
 
     # def combine_result_1D_y(self,ncores):          
     #     filenames = ['thetahist_'+str(i)+'.dat' for i in range(ncores)]
@@ -583,16 +588,16 @@ class CellHistogram(object):
     #             with open(fname) as infile:
     #                 for line in infile:
     #                     outfile.write(line)
-    #             remove(fname)
+    #             os.remove(fname)
 
     #     out = open('thetahist.dat', 'w')
-    #     tmp = loadtxt(filetmp, unpack = True)
-    #     tmp_T = transpose(tmp)
+    #     tmp = np.loadtxt(filetmp, unpack = True)
+    #     tmp_T = np.transpose(tmp)
     #     sort = tmp_T[tmp_T[:,0].argsort()]
     #     for line in sort:
     #         out.write(str(line)[1:-1]+"\n")
 
-    #     remove(filetmp)
+    #     os.remove(filetmp)
         
 
     def fit_cell(self,canvas,i,ncores,flag_inv_order=False):
@@ -694,7 +699,7 @@ class CellHistogram(object):
 
         # local_canvas = deepcopy(canvas)
         
-        # x,y,width,height = loadtxt('cell_fortran.dat', unpack = True)
+        # x,y,width,height = np.loadtxt('cell_fortran.dat', unpack = True)
 
         # xmin=min(x)
         # if xmin > local_canvas.corner.x:
@@ -1071,3 +1076,130 @@ class CellHistogram(object):
     #     out.write(s)
     #     out.close()
     
+
+class fit2D_energy_theta(CellHistogram):
+    
+    lpp2 = {'electron' : 0, 'DIS' : 1}
+    ebeam2 = {'electron' : 0.000511, 'DIS' : 0.938}
+    
+    def __init__(self,proc_characteristics,input_lhe_evts,interaction_channel):
+        # load proc info and fit params 
+        self.proc_characteristics = proc_characteristics
+        self.fit2D_card = fit2D.Fit2DCard(pjoin('fit2D_card.dat'))
+        self.interaction_channel = interaction_channel
+        #store and reweight evts
+        self.npass,self.E_min,self.E_max,self.theta_min,self.theta_max,self.data = \
+                    self.store_reweight(input_lhe_evts)
+
+        super(fit2D_energy_theta,self).__init__(Point(self.E_min,self.theta_min), \
+                                    self.E_max-self.E_min,self.theta_max-self.theta_min,50)
+        self.add_pts(self.data)
+        
+
+    def heaviside(self,x):
+        if x>0:
+            return 1
+        else:
+            return 0
+
+        
+    def max_travel_distance(self,theta,cphi,sphi):
+        depth = self.fit2D_card['depth']
+        xmin = -self.fit2D_card['x_side']/2.
+        xmax = self.fit2D_card['x_side']/2.
+        ymin = -self.fit2D_card['y_side']/2.
+        ymax = self.fit2D_card['y_side']/2.
+        sth = np.sin(theta)
+        z1 = self.fit2D_card['d_target_detector']
+        z2 = z1 + depth
+        x1 = z1*sth*cphi
+        y1 = z1*sth*sphi
+        in_z1 = self.heaviside(x1-xmin)*self.heaviside(xmax-x1) \
+                *self.heaviside(y1-ymin)*self.heaviside(ymax-y1)
+        if in_z1 == 0.:
+            return 0.
+        x2 = z2*sth*cphi
+        y2 = z2*sth*sphi
+        in_z2 = self.heaviside(x2-xmin)*self.heaviside(xmax-x2) \
+                *self.heaviside(y2-ymin)*self.heaviside(ymax-y2)
+        if in_z2 != 0.:
+            return np.sqrt((x2-x1)**2+(y2-y1)**2+depth**2)
+        if x2 > xmax:
+            x3 =  xmax
+            y3 =  xmax*sphi/cphi
+            z3 =  xmax/sth/cphi 
+            return np.sqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
+        if x2 < xmin:
+            x3 =  xmin          
+            y3 =  xmin*sphi/cphi
+            z3 =  xmin/sth/cphi 
+            return np.sqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
+        if y2 > ymax:
+            x3 =  ymax*cphi/sphi
+            y3 =  ymax
+            z3 =  ymax/sth/sphi
+            return np.sqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
+        if y2 < ymin:
+            x3 =  ymin*cphi/sphi
+            y3 =  ymin
+            z3 =  ymin/sth/sphi
+            return np.sqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
+
+        
+    def eff_function(self,E,theta,cphi,sphi):
+        depth = self.fit2D_card['depth']
+        return self.max_travel_distance(theta,cphi,sphi)*np.cos(theta)/depth
+
+    
+    def store_reweight(self,input_lhe_evts):
+        E_min = 1e20
+        E_max = 0.
+        theta_min = np.pi/2.
+        theta_max = 0.
+        npass = 0
+        data = []
+        print(os.getcwd())
+        print(int(self.proc_characteristics['DM']))
+        lhe_evts = lhe_parser.EventFile(input_lhe_evts)
+        norm = self.fit2D_card['flux_norm']
+        nevt = len(lhe_evts)
+        for event in lhe_evts:
+            for particle in event:
+                if particle.status == 1: # stable final state 
+                    if abs(particle.pid) == int(self.proc_characteristics['DM']):
+                        p = lhe_parser.FourMomentum(particle)
+                        theta = np.arccos(p.pz/p.norm)
+                        cphi = p.px/np.sqrt(p.px**2+p.py**2)
+                        sphi = p.py/np.sqrt(p.px**2+p.py**2)
+                        data.append(WeightedPoint(p.E,theta, \
+                                    norm/nevt*self.eff_function(p.E,theta,cphi,sphi)))
+                
+                        if self.eff_function(p.E,theta,cphi,sphi) != 0:                    
+                            npass+=1
+                            if p.E < E_min:
+                                E_min = p.E
+                            if p.E > E_max:
+                                E_max = p.E
+                            if theta < theta_min:
+                                theta_min = theta
+                            if theta > theta_max:
+                                theta_max = theta
+        return npass,E_min,E_max,theta_min,theta_max,data
+                            #print(E_min,theta_min,E_max,theta_max,len(data))
+
+                            
+    def do_fit(self):
+        ncores = self.fit2D_card['ncores']
+        # Generate the 2DMesh, output file: cell_fortran.dat
+        self.fit(ncores=ncores)
+        #plot('cell_fortran.dat')
+        # 3 step: Generate 1D distribution (integrated in angles)
+        # and of the output ehist.dat
+        self.fit('1D_x',ncores=ncores)
+        # Update parameters in the run card
+        run_card = banner_mod.RunCard(pjoin('run_card_default.dat'))
+        run_card['lpp2'] = self.lpp2[self.interaction_channel]
+        run_card['ebeam1'] = self.E_max
+        run_card['ebeam2'] = self.ebeam2[self.interaction_channel]
+        run_card['use_syst'] = False
+        run_card.write(pjoin('run_card.dat'))

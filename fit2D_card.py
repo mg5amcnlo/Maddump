@@ -6,13 +6,16 @@ pjoin = os.path.join
 
 class Fit2DCard(bannermod.RunCard):
     """an object to handle in a nice way the 2d fit and detector information"""
+
+    filename = 'fit2D_card'
+    default_include_file = 'fit2D_card.inc'
     
     def __new__(cls, finput=None, **opt):
         """Bypass the standard RunCard one"""
         return super(bannermod.RunCard, cls).__new__(cls, finput, **opt)
 
     def default_setup(self):
-        """default value for the run_card.dat"""
+        """default value for the fit2D_card.dat"""
         
         #flux normalization
         self.add_param("flux_norm", 1., comment= 'Overall normalization of the incoming flux without applying cuts')
@@ -29,7 +32,7 @@ class Fit2DCard(bannermod.RunCard):
         self.add_param("theta_min", 0.)
         self.add_param("theta_max", np.pi/2.)
 
-        self.add_param("parallepiped", True)
+        self.add_param("parallelepiped", True)
         self.add_param("x_side", 1.)
         self.add_param("y_side", 1.)
 

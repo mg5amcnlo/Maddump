@@ -33,7 +33,7 @@
      %(theta_min)s     =  theta_min ! >= 0
      %(theta_max)s     =  theta_max ! <= pi/2
 
-     %(parallepiped)s   =  parallepiped ! True = select parallepiped geometry 
+     %(parallelepiped)s   =  parallelepiped ! True = select parallepiped geometry 
      %(x_side)s     =  x_side ! in cm
      %(y_side)s     =  y_side ! in cm 
 

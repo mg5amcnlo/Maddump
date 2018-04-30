@@ -4,6 +4,7 @@ import madgraph.various.misc as misc
 import madgraph.interface.common_run_interface as common_run
 import madgraph.interface.extended_cmd as cmd
 import madgraph.interface.launch_ext_program as launch_ext
+import models.check_param_card as param_card_mod
 import subprocess
 import logging
 
@@ -11,6 +12,7 @@ pjoin = os.path.join
 logger = logging.getLogger('madgraph.plugin.maddump')
 
 from .. import fit2D_card as fit2D
+from .. import  meshfitter2D as meshfitter
 
 # LAUNCH PROGRAM
 _launch_usage = "launch [DIRPATH] [options]\n" + \
@@ -38,6 +40,22 @@ _launch_parser.add_option("-R", "--reweight", default=False, action='store_true'
 _launch_parser.add_option("-M", "--madspin", default=False, action='store_true',
                             help="Run the madspin package")
 
+
+class param_card_iterator(param_card_mod.ParamCardIterator):
+
+    def write_summary(self, path, order=None, lastline=False, nbcol=20):
+        """ """
+        predir,name = os.path.split(path)
+        
+        path1= pjoin(predir, 'DIS', name)
+        path2= pjoin(predir, 'electron', name)
+        path3= pjoin(predir, 'ENS', name)
+        
+        super(param_card_iterator, self).write_summary(path1, order)
+        super(param_card_iterator, self).write_summary(path2, order)
+        super(param_card_iterator, self).write_summary(path3, order)
+
+
 #===============================================================================
 # CommonRunCmd
 #===============================================================================
@@ -55,12 +73,13 @@ class MADDUMPRunCmd(cmd.CmdShell):
             dir_path = root_path
 
         self.dir_path = dir_path
-        self.param_card_iterator = [] #a placeholder containing a generator of paramcard for scanning
+        self.me_dir = dir_path
+        #self.param_card_iterator = [] #a placeholder containing a generator of paramcard for scanning
         
         #A shared param card object to the interface.
         #All parts of the code should read this card.
         #Set at the beginning of launch()
-        self.param_card = None
+        #self.param_card = None
         
         self.auto_width = set() # keep track of width set on Auto
 
@@ -110,23 +129,25 @@ class MADDUMPRunCmd(cmd.CmdShell):
     # If you want to force the computation right now and re-edit
     # the cards afterwards, you can type \"compute_wdiths\".''')
 
+    def get_proc_characteristics(self,path):
+        proc_file = open(path,'r')
+        proc_characteristics = {} 
+        for line in proc_file:
+            if '=' not in line:
+                continue
+            else:
+                args = line.split()
+                proc_characteristics[args[0]] = args[2]
+        return proc_characteristics
     
-    def do_compute_widths(self, line):
-                
-        # if self.maddm_card['only_two_body_decays']:
-        #     line = ' --body_decay=2 ' + line
-        # #return self.run_mg5(['compute_widths --body_decay=2 ' + line])
-        if not hasattr(self, 'mg5'):
-            return self.run_mg5(['compute_widths ' + line])
-        elif not hasattr(self.mg5, '_curr_model'):
-            return self.run_mg5(['compute_widths ' + line])
-        else:
-            self.mg5.do_compute_widths(line, model=self.mg5._curr_model)#, decaymodel=self.mg5._curr_decaymodel)
-    
+    def get_model(self):
+        return self.proc_characteristics['BSM_model']
+        # self.mg5.exec_cmd('import model name OPTIONS')
+        # return self.mg5._curr_model
+        
     def help_compute_widths(self, line):
         
         return self.run_mg5([' help compute_widths ' + line])    
-
 
     ############################################################################
     def do_launch(self, line):
@@ -142,6 +163,35 @@ class MADDUMPRunCmd(cmd.CmdShell):
         #self.check_launch(args, options)
         options = options.__dict__
 
+        if options['name']:
+            self.run_name = options['name']
+        else:
+            i = 1
+            while os.path.exists(pjoin(self.dir_path, 'production', 'Events', 'run_%02d' %i)) or\
+                  os.path.exists(pjoin(self.dir_path, 'production', 'Events', 'run_%02d_01' %i)):
+                i += 1
+            self.run_name = 'run_%02d' % i
+
+        #self.run_name = 'run_%02d' % 3
+        
+            
+        interaction_dir_all = ['interaction_DIS','interaction_electron','interaction_ENS']
+        listdir = subprocess.check_output("ls %s"%self.dir_path,shell=True).split()
+
+        self.interaction_dir = []
+        for dir in listdir:
+            if dir in interaction_dir_all:
+                self.interaction_dir.append(dir)
+
+        self.proc_characteristics = self.get_proc_characteristics(pjoin(self.dir_path,self.interaction_dir[0],'SubProcesses','proc_characteristics'))
+        
+        # param_card_iterator.write(card_path) #-> this is done by the with statement
+        #         name = misc.get_scan_name(orig_name, next_name)
+        #         path = result_path(obj) % name 
+        #         logger.info("write all cross-section results in %s" % path ,'$MG:BOLD')
+        #         order = summaryorder(obj)()
+        #         param_card_iterator.write_summary(path, order=order)
+            
         # # determine run_name for name in the output directory:
         # if '-n' in args:
         #     self.run_name = args[args.index('-n')+1]
@@ -159,35 +209,49 @@ class MADDUMPRunCmd(cmd.CmdShell):
         #     self.run_name = 'run_%02d' % i
         
         self.ask_run_configuration(mode=[], force=force)
-
+        self.run_launch()
+        
+    @common_run.scanparamcardhandling(iteratorclass=param_card_iterator)
+    def run_launch(self):
         prod_dir = 'production'
         # generate events: production
         os.chdir(pjoin(self.dir_path,prod_dir))
-        os.system('./bin/generate_events -f')
-        events_dir=subprocess.check_output("ls Events -trl | tail -n 1 | awk '{print $9}'",shell=True).rstrip()
+        os.system('./bin/generate_events %s -f'%self.run_name) 
+        
         misc.sprint(os.getcwd())
         os.chdir('..')
         misc.sprint(os.getcwd())
         
-        interaction_dir = ['interaction_DIS','interaction_electron','interaction_ENS']
-        listdir = subprocess.check_output("ls",shell=True).split()
-        misc.sprint(listdir)
-        
-        for dir in listdir:
-            if dir in interaction_dir:
-                os.chdir(pjoin(dir,'Cards'))
-                try:
-                    os.remove('unweighted_events.lhe.gz')
-                except OSError:
-                    pass
-                os.system('ln -s ../../'+prod_dir+'/Events/'+events_dir+'/unweighted_events.lhe.gz')
-                os.system('./lhe-meshfitter.py')
-                os.chdir('../')
-                #self.maddump.write_include_file('Source')
-                os.system('./bin/generate_events -f')
-                os.chdir('../')
-
+        for dir in self.interaction_dir:
+            os.chdir(pjoin(dir,'Cards'))
+            fit2D_card = fit2D.Fit2DCard(pjoin('fit2D_card.dat'))
+            fit2D_card.write_include_file('../Source')            
+            try:
+                os.remove('unweighted_events.lhe.gz')
+            except OSError:
+                pass
+            if 'DIS' in dir:
+                interaction_channel = 'DIS'
+            elif 'electron' in dir:
+                interaction_channel = 'electron'
+            else:
+                interaction_channel = None
                 
+            os.system('ln -s ../../'+prod_dir+'/Events/'+self.run_name+'/unweighted_events.lhe.gz')
+            hist2D_energy_angle = meshfitter.fit2D_energy_theta(self.proc_characteristics, \
+                                                'unweighted_events.lhe.gz',interaction_channel)
+            hist2D_energy_angle.do_fit()
+            os.chdir('../')
+            os.system('./bin/generate_events %s -f'%self.run_name)
+            os.chdir('../')
+
+
+    def store_for_scan(self):
+        return {}
+
+    def set_run_name(self, name):
+        self.run_name = name
+                        
         # if self.param_card_iterator:
         #     self.run_name += '_01'
 
@@ -460,7 +524,11 @@ class MADDUMPRunCmd(cmd.CmdShell):
             imode = path2name(card_name)
             possible_answer.append(i+1)
             possible_answer.append(imode)
-            question += '| %-77s|\n'%((' \x1b[31m%%s\x1b[0m. %%-%ds : \x1b[32m%%s\x1b[0m'%indent)%(i+1, imode, card_name))
+            #question += '| %-77s|\n'%((' \x1b[31m%%s\x1b[0m. %%-%ds : \x1b[32m%%s\x1b[0m'%indent)%(i+1, imode, card_name))
+            if card_name != 'run_card.dat':
+                question += '| %-77s|\n'%((' \x1b[31m%%s\x1b[0m. %%-%ds : \x1b[32m%%s\x1b[0m'%indent)%(i+1, imode, card_name))
+            else:
+                question += '| %-77s|\n'%((' \x1b[31m%%s\x1b[0m. %%-%ds : \x1b[32m%%s\x1b[0m (production)'%indent)%(i+1, imode, card_name))
             card[i+1] = imode
             
         if plot and not 'plot_card.dat' in cards:

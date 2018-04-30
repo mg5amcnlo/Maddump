@@ -40,9 +40,23 @@ logging.basicConfig()
 lpp2 = {'electron' : 0, 'proton' : 1}
 ebeam2 = {'electron' : 0.000511, 'proton' : 0.938}
 
-#INPUT
-#DM_pdgcode = [5000521,-5000521]
-DM_pdgcode = [22008,-22008]
+
+def get_proc_characteristics(path):
+    proc_file = open(path,'r')
+    proc_characteristics = {} 
+    for line in proc_file:
+        if '=' not in line:
+            continue
+        else:
+            args = line.split()
+            proc_characteristics[args[0]] = args[2]
+        return proc_characteristics
+
+
+proc_characteristics = get_proc_characteristics('../SubProcesses/proc_characteristics')
+
+DM = int(proc_characteristic['DM'])
+DM_pdgcode = [DM,-DM]
 events_lhefile = 'unweighted_events.lhe.gz'
 detector_particle = 'proton' 
 

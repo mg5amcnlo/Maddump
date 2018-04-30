@@ -21,16 +21,16 @@ pjoin = os.path.join
 
 logger = logging.getLogger('madgraph.plugin.maddump')
 
-# class bcolors:
-#     HEADER = '\033[95m'
-#     OKBLUE = '\033[94m'
-#     GRAY = '\033[90m'
-#     OKGREEN = '\033[92m'
-#     WARNING = '\033[93m'
-#     FAIL = '\033[91m'
-#     ENDC = '\033[0m'
-#     BOLD = '\033[1m'
-#     UNDERLINE = '\033[4m'
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    GRAY = '\033[90m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 class DMError(Exception): pass
 
@@ -40,7 +40,37 @@ MDumpDIR = os.path.dirname(os.path.realpath( __file__ ))
     
 class MadDump_interface(master_interface.MasterCmd):
 
-    intro_banner= 'MadDump plugin' 
+    # intro_banner= 'MadDump plugin'
+    intro_banner=\
+  "            ====================================================\n"+\
+  "            |                  "+bcolors.OKBLUE+"  MadDM v3.0                     "+bcolors.ENDC+"|\n"\
+  "            ====================================================\n"+\
+  "                                                                               \n"+\
+  "                #########                                                        \n"+\
+  "             ###\\\\####//#####              Launchpad:  launchpad.net/maddm      \n"+\
+  "           ######\\\\##//########                                              \n"+\
+  "          ########\\\\//###########                                            \n"+\
+  "         #########//\\\\############                    "+bcolors.FAIL+"arXiv:1308.4955        \n"+bcolors.ENDC+\
+  "        #########//##\\\\############                   "+bcolors.FAIL+"arXiv:1505.04190        \n"+bcolors.ENDC+\
+  "       ########//#####\\\\###########                   "+bcolors.FAIL+"arXiv:1804.00444        \n"+bcolors.ENDC+\
+  "       ######################### ## ___________________________________________\n"+\
+  "       ####################### 0  # "+bcolors.OKGREEN+" _     _               _  _____   _     _  \n"+bcolors.ENDC+\
+  "       #############   0  ###    ## "+bcolors.OKGREEN+"| \   / |   ___    ___|| | ___ \ | \   / | \n"+bcolors.ENDC+\
+  "       ##############    #########  "+bcolors.OKGREEN+"||\\\\ //|| / __ |  / __ | ||   || ||\\\\ //|| \n"+bcolors.ENDC+\
+  "        ##########################  "+bcolors.OKGREEN+"||  V  || ||__||  ||__|| ||___|| ||  V  || \n"+bcolors.ENDC+\
+  "         ###################   ##   "+bcolors.OKGREEN+"||     || \_____\ \____| |_____/ ||     || \n"+bcolors.ENDC+\
+  "          ############       ###    ___________________________________________\n"+\
+  "           ##########    ######                                                 \n"+\
+  "             ################                                                   \n"+\
+  "                 ########                                                       \n"+\
+  "                                                                                    \n"+\
+  "            Need to learn? -> type tutorial                               \n"+\
+  "                                                                                    \n"+\
+  "            ====================================================\n"+\
+  "            |           "+bcolors.OKBLUE+" A MadGraph5_aMC@NLO plugin.            "+bcolors.ENDC+"|\n"\
+  "            ====================================================\n"+\
+  "%s" 
+
 
     _define_options = ['darkmatter']
     
@@ -250,18 +280,22 @@ class MadDump_interface(master_interface.MasterCmd):
                     for i in range(2):
                         cp('production/Cards/'+cards[i],
                            cards_dir+cards[i])
+                        os.remove('production/Cards/'+cards[i])
+                        os.symlink(pjoin('..','..',cards_dir,cards[i]), pjoin('production','Cards',cards[i]))
+
                 # put the run_card in the common Cards dir and create a symbolic link
                 # in the production/Cards dir
                 cp('production/Cards/'+'run_card.dat', cards_dir+'run_card.dat')
                 cp('production/Cards/'+'run_card_default.dat', cards_dir+'run_card_default.dat')
                 try:
                     for card in cards:
-                        os.remove('production/Cards/'+'Cards/'+'run_card.dat')
-                        os.remove('production/Cards/'+'Cards/'+'run_card_default.dat')
+                        os.remove('production/Cards/'+'run_card.dat')
+                        os.remove('production/Cards/'+'run_card_default.dat')
                 except OSError:
                     pass
-                ln(cards_dir+'run_card.dat', 'production/Cards/'+'run_card.dat', log=False)
-                ln(cards_dir+'run_card_default.dat', 'production/Cards/'+'run_card_default.dat', log=False)
+                
+                os.symlink(pjoin('..','..',cards_dir,'run_card.dat'), pjoin('production','Cards','run_card.dat'))
+                os.symlink(pjoin('..','..',cards_dir,'run_card_default.dat'), pjoin('production','Cards/','run_card_default.dat'))
             else:
                 self._curr_matrix_elements = helas_objects.HelasMultiProcess()
                 processes_list = self.process_tag.keys()
@@ -284,16 +318,18 @@ class MadDump_interface(master_interface.MasterCmd):
                     for i in range(2,4):
                         cp(current_dir+'Cards/'+cards[i],
                            cards_dir+cards[i])
-                        
                 try:
                     for card in cards:
                         os.remove(current_dir+'Cards/'+card)
                 except OSError:
                     pass
                 # os.symlink(os.path.join('production',paramcard_path), os.path.join(current_dir, paramcard_path))
-                #os.symlink('../../production'+paramcard_path, current_dir+paramcard_path)
                 for card in cards:
-                    ln(cards_dir + card, current_dir + card, log=False)
+                    os.symlink(pjoin('..','..',cards_dir,card), pjoin(current_dir,'Cards',card))
+                    #ln(cards_dir + card, current_dir + card, log=False)
+                # if 'proc_characteristics' not in os.listdir(cards_dir):
+                #     ln(current_dir+'SubProcesses/proc_characteristics', cards_dir + 'proc_characteristics', log=False)
+                    
         os.chdir('../')
                 
     # def find_output_type(self, path):
