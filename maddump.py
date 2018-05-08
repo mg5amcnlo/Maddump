@@ -83,8 +83,8 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
             ff.close()
 
         #modiy existing fortran code in Source
-        files = ["rw_events.f"]
-        remove_list = [["read_event","write_event_to_stream","write_event"]]
+        files = ["rw_events.f","setrun.f"]
+        remove_list = [["read_event","write_event_to_stream","write_event"],["setrun"]]
         for name, to_rm in zip(files, remove_list):
             template = open(pjoin(self.dir_path, "Source", name),"r").read()
             plugin = open(pjoin(self.mgme_dir, "PLUGIN", "maddump", "Templates",name),"r").read()

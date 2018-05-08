@@ -314,126 +314,67 @@ class CellHistogram(object):
         width = cell.width
         height = cell.height
 
-#         # #        twocells= False
-#         cell.pts.sort()
-#         wgt = cell.weight
-#         loop=True
-#         while(loop):
-#             weight=0
-#             for pt in cell.pts:
-#                 weight += pt.weight
-#                 if (weight > 0.95*wgt):
-#                     isplit = cell.pts.index(pt)
-#                     break
-#             if ( (cell.pts[isplit-1].x-cell.corner.x)  < .6*width ):
-#                 #print((cell.pts[isplit].x-cell.corner.x),cell.width)
-#                 width= cell.pts[isplit-1].x-cell.corner.x
-#                 wgt=0.95*wgt
-#             else:
-#                 loop=False
-
-#         loop=True
-# #        wgt = cell.weight
-#         while(loop):
-#             weight=0
-#             for pt in cell.pts[::-1]:
-#                 weight += pt.weight
-#                 if (weight > 0.95*wgt):
-#                     isplit = cell.pts.index(pt)
-#                     break
-#             if ( (width+corner_x-cell.pts[isplit-1].x)  < .6*width ):
-#                 #print((cell.pts[isplit].x-cell.corner.x),cell.width)
-#                 #width= cell.pts[isplit-1].x-cell.corner.x
-#                 width = width+corner_x-cell.pts[isplit-1].x
-#                 corner_x = cell.pts[isplit-1].x
-#                 wgt=0.95*wgt
-#             else:
-#                 loop=False
-
-                
-#         # #d1 = cell.pts[1].x-cell.corner.x
-#         # #d2 = cell.width - cell.pts[-1].x
-#         # d12 = cell.pts[-1].x - cell.pts[-2].x
-#         # d12ref = cell.pts[-2].x - cell.corner.x
+        peripheral = False
+        # check whether the cell is on the boundary or not
         
-#         # # if d1 > cell.width/2.:
-#         # #     corner_x = cell.pts[1].x
-#         # #     corner_y = cell.corner.y
-#         # #     width = cell.width - cell.pts[1].x
-#         # #     height = cell.height
-#         # # if d2 > cell.width/2.:
-#         # #     corner_x = cell.corner.x
-#         # #     corner_y = cell.corner.y
-#         # #     width = cell.pts[-1].x
-#         # #     height = cell.height
+        fac=0.98
+        wgt = cell.weight
+        cell.pts.sort()
+        if(corner_x == self.canvas.corner.x):
+            peripheral = True
+            weight=0
+            for pt in cell.pts[::-1]:
+                weight += pt.weight
+                if (weight > fac*wgt):
+                    isplit = cell.pts.index(pt)
+                    break
 
-#         # if d12>2*d12ref:
-#         #     width = cell.pts[-2].x - cell.corner.x 
-                
-#         for pt in cell.pts:
-#             pt.exchange_xy()
-#         cell.pts.sort()
-#         for pt in cell.pts:
-#             pt.exchange_xy()
+            width = width -(cell.pts[isplit+1].x-corner_x)
+            corner_x = cell.pts[isplit+1].x
 
-#         loop=True
-#         wgt = cell.weight
-#         while(loop):
-#             weight=0
-#             for pt in cell.pts:
-#                 weight += pt.weight
-#                 if (weight > 0.95*wgt):
-#                     isplit = cell.pts.index(pt)
-#                     break
-#             if ( (cell.pts[isplit-1].y-cell.corner.y) < .6*height ):
-#                 height= cell.pts[isplit-1].y-cell.corner.y
-#                 wgt=0.95*wgt
-#             else:
-#                 loop=False
+        if(corner_x+width == self.canvas.corner.x+self.canvas.width):
+            peripheral = True
+            weight=0
+            for pt in cell.pts:
+                weight += pt.weight
+                if (weight > fac*wgt):
+                    isplit = cell.pts.index(pt)
+                    break
+            width = cell.pts[isplit-1].x-corner_x
+            
+        for pt in cell.pts:
+            pt.exchange_xy()
+        cell.pts.sort()
+        for pt in cell.pts:
+            pt.exchange_xy()
 
-                               
-#         loop=True
-# #        wgt = cell.weight
-#         while(loop):
-#             weight=0
-#             for pt in cell.pts[::-1]:
-#                 weight += pt.weight
-#                 if (weight > 0.95*wgt):
-#                     isplit = cell.pts.index(pt)
-#                     break
-#             if ( (height+corner_y - cell.pts[isplit-1].y) < .6*height ):
-#                 height= height+corner_y - cell.pts[isplit-1].y
-#                 corner_y = cell.pts[isplit-1].y
-#                 wgt=0.95*wgt
-#             else:
-#                 loop=False
-
-#         # #d1 = cell.pts[1].y-cell.corner.y
-#         # #d2 = cell.height - cell.pts[-1].y
-
-#         # d12 = cell.pts[-1].y - cell.pts[-2].y
-#         # d12ref = cell.pts[-2].y - cell.corner.y
-
-#         # # if d1 > cell.height/2.:
-#         # #     if d1==dmax:
-#         # #         corner_x = cell.corner.x
-#         # #         corner_y = cell.pts[1].y
-#         # #         width = cell.width
-#         # #         height = cell.height - cell.pts[1].y
-#         # #     elif d2==dmax:
-#         # #         corner_x = cell.corner.x
-#         # #         corner_y = cell.corner.y
-#         # #         width = cell.width
-#         # #         height = cell.pts[-1].y
-
-#         # if d12>2*d12ref:
-#         #     height = cell.pts[-2].y - cell.corner.y 
-                    
+        if(corner_y == self.canvas.corner.y):
+            peripheral = True
+            weight=0
+            for pt in cell.pts[::-1]:
+                weight += pt.weight
+                if (weight > fac*wgt):
+                    isplit = cell.pts.index(pt)
+                    break
+            height = height -(cell.pts[isplit+1].y-corner_y)
+            corner_y = cell.pts[isplit+1].y
+            
+        if(corner_y+height == self.canvas.corner.y+self.canvas.height):
+            peripheral = True
+            weight=0
+            for pt in cell.pts:
+                weight += pt.weight
+                if (weight > fac*wgt):
+                    isplit = cell.pts.index(pt)
+                    break
+            height = cell.pts[isplit-1].y-corner_y
+            
         s = str(corner_x) + "\t" + str(corner_y) + "\t" + \
             str(width) + "\t" + str(height) + "\n" 
         file.write(s)
-            
-    def fit(self,fit_type='cell',ncores=1):
+
+        
+    def fit(self,fit_type='cell',start_direction='horizontally',ncores=1):
         """ Fit 2Dcell/1Dinterval mesh according to data points distribution. """
         method_name = 'fit_' + str(fit_type)
         fit_method = getattr(self, method_name)
@@ -443,9 +384,13 @@ class CellHistogram(object):
         tmp_canvas = []
 
         nstart=1
-        flag_inv_order=False
+        self.flag_inv_order=False
         
         if (fit_type=='cell'):
+            if start_direction == 'horizontally':
+                split = [self.equalweight_split_horizontally,self.equalweight_split_vertically]
+            elif start_direction == 'vertically':
+                split = [self.equalweight_split_vertically,self.equalweight_split_horizontally]
             
             if ncores in [2**j for j in range(1,10)]:
                 canvas.append(local_canvas)
@@ -453,47 +398,47 @@ class CellHistogram(object):
                 if (n%2==0):
                     for i in range(n/2):
                         for cell in canvas:
-                            cell1,cell2 = self.equalweight_split_horizontally(cell)
+                            cell1,cell2 = split[0](cell)
                             tmp_canvas.append(cell1)
                             tmp_canvas.append(cell2)
                             
-                        canvas = tmp_canvas
+                        canvas = deepcopy(tmp_canvas)
                         tmp_canvas= []
                             
                         for cell in canvas:
-                            cell1,cell2 = self.equalweight_split_vertically(cell)
+                            cell1,cell2 = split[1](cell)
                             tmp_canvas.append(cell1)
                             tmp_canvas.append(cell2)
                             
-                        canvas = tmp_canvas
+                        canvas = deepcopy(tmp_canvas)
                         tmp_canvas= []
 
                 else:
-                    cell1,cell2 = self.equalweight_split_horizontally(local_canvas)
+                    cell1,cell2 = self.split[0](local_canvas)
                     tmp_canvas.append(cell1)
                     tmp_canvas.append(cell2)
 
-                    canvas = tmp_canvas
+                    canvas = deepcopy(tmp_canvas)
                     tmp_canvas= []
 
                     for i in range((n-1)/2):
                         for cell in canvas:
-                            cell1,cell2 = self.equalweight_split_vertically(cell)
+                            cell1,cell2 = split[1](cell)
                             tmp_canvas.append(cell1)
                             tmp_canvas.append(cell2)
                             
-                        canvas = tmp_canvas
+                        canvas = deepcopy(tmp_canvas)
                         tmp_canvas= []
                             
                         for cell in canvas:
-                            cell1,cell2 = self.equalweight_split_horizontally(cell)
+                            cell1,cell2 = split[0](cell)
                             tmp_canvas.append(cell1)
                             tmp_canvas.append(cell2)
                             
-                        canvas = tmp_canvas
+                        canvas = deepcopy(tmp_canvas)
                         tmp_canvas= []
 
-                    flag_inv_order = True
+                    self.flag_inv_order = True
                     
             elif (ncores%2==0):
                 print('Warning: multicores has been tested only for number of cores = 2^j, j integer')
@@ -515,16 +460,13 @@ class CellHistogram(object):
 
         else:
             canvas = self.multi_equalweight_split_vertically(local_canvas,ncores)
-                        
+                
         if (not canvas): exit(-1)
         
         jobs = []
         k=0
         for i in range(ncores):
-            if (not flag_inv_order):
-                p = multiprocessing.Process(target=fit_method, args=(canvas[i],k,nstart))
-            else:
-                p = multiprocessing.Process(target=fit_method, args=(canvas[i],k,nstart,True))
+            p = multiprocessing.Process(target=fit_method, args=(canvas[i],k,nstart,start_direction))
             jobs.append(p)
             p.start()
             k +=1
@@ -600,7 +542,7 @@ class CellHistogram(object):
     #     os.remove(filetmp)
         
 
-    def fit_cell(self,canvas,i,ncores,flag_inv_order=False):
+    def fit_cell(self,canvas,i,ncores,start_direction):
 
         npts=self.npts
         weight_exit = self.npts_exit*self.weight/npts
@@ -611,42 +553,38 @@ class CellHistogram(object):
 #        if ncores!=1 :
 #            cells = self.multi_equalweight_split_vertically(canvas,ncores)
 #        else:
+
         cells = [canvas]
+
+        if start_direction == 'horizontally':
+            split = [self.equalweight_split_horizontally,self.equalweight_split_vertically]
+        elif start_direction == 'vertically':
+            split = [self.equalweight_split_vertically,self.equalweight_split_horizontally]
         
-        if flag_inv_order==False:
+        if self.flag_inv_order==False:
             while ( (not cells) == False):
                 for cell in cells:
                     if(cell.weight > weight_exit):
-                        cell1, cell2= self.equalweight_split_horizontally(cell)
+                        cell1, cell2= split[0](cell)
                     
                         if (cell1.weight > weight_exit):
-                            subcell1, subcell2 = self.equalweight_split_vertically(cell1)
+                            subcell1, subcell2 = split[1](cell1)
                             cells.append(subcell1)
                             cells.append(subcell2)
 
                         else:
-                            # s = str(cell1.corner.x) + "\t" + str(cell1.corner.y) + "\t" + \
-                            #     str(cell1.width) + "\t" + str(cell1.height) + "\n" 
-                            # out.write(s)
                             self.write_cell(cell1,out)
 
                         if (cell2.weight > weight_exit):
-                            subcell3, subcell4 = self.equalweight_split_vertically(cell2)
+                            subcell3, subcell4 = split[1](cell2)
                             cells.append(subcell3)
                             cells.append(subcell4)
                         
                         else:
-                            # s = str(cell2.corner.x) + "\t" + str(cell2.corner.y) + "\t" + \
-                            #     str(cell2.width) + "\t" + str(cell2.height) + "\n" 
-                            # out.write(s)
                             self.write_cell(cell2,out)
 
                     else:
-                        # s = str(cell.corner.x) + "\t" + str(cell.corner.y) + "\t" + \
-                        #     str(cell.width) + "\t" + str(cell.height) + "\n" 
-                        # out.write(s)
                         self.write_cell(cell,out)
-
 
                     cells.remove(cell)
 
@@ -654,71 +592,51 @@ class CellHistogram(object):
             while ( (not cells) == False):
                 for cell in cells:
                     if(cell.weight > weight_exit):
-                        cell1, cell2= self.equalweight_split_vertically(cell)
+                        cell1, cell2= split[1](cell)
                     
                         if (cell1.weight > weight_exit):
-                            subcell1, subcell2 = self.equalweight_split_horizontally(cell1)
+                            subcell1, subcell2 = split[0](cell1)
                             cells.append(subcell1)
                             cells.append(subcell2)
 
                         else:
-                            # s = str(cell1.corner.x) + "\t" + str(cell1.corner.y) + "\t" + \
-                            #     str(cell1.width) + "\t" + str(cell1.height) + "\n" 
-                            # out.write(s)
                             self.write_cell(cell1,out)
 
 
                         if (cell2.weight > weight_exit):
-                            subcell3, subcell4 = self.equalweight_split_horizontally(cell2)
+                            subcell3, subcell4 = split[0](cell2)
                             cells.append(subcell3)
                             cells.append(subcell4)
                         
                         else:
-                            # s = str(cell2.corner.x) + "\t" + str(cell2.corner.y) + "\t" + \
-                            #     str(cell2.width) + "\t" + str(cell2.height) + "\n" 
-                            # out.write(s)
                             self.write_cell(cell2,out)
 
                     else:
-                        # s = str(cell.corner.x) + "\t" + str(cell.corner.y) + "\t" + \
-                        #     str(cell.width) + "\t" + str(cell.height) + "\n" 
-                        # out.write(s)
                         self.write_cell(cell,out)
                             
-
                     cells.remove(cell)
                 
         print('end fit')
 
         out.close()
+
         
-    def fit_1D_x(self,canvas,i,nstart):
+    def fit_1D_x(self,canvas,i,nstart,start_direction):
 
         file = 'ehist_'+str(i)+'.dat'
         out = open(file,'w')
-
-        # local_canvas = deepcopy(canvas)
-        
-        # x,y,width,height = np.loadtxt('cell_fortran.dat', unpack = True)
-
-        # xmin=min(x)
-        # if xmin > local_canvas.corner.x:
-        #     local_canvas.corner.x = xmin
-
-        # c = [x[i]+width[i] for i in range(len(x))]
-        # xmax = max(c)
-        # if xmax < local_canvas.corner.x+local_canvas.width:
-        #     local_canvas.width = xmax - local_canvas.corner.x 
         
         cells = [canvas]
 
         npts=self.npts
         weight_exit = self.weight/50
 
+        split = [self.equalweight_split_vertically]
+
         while ( (not cells) == False):
             for cell in cells:
                 if(cell.weight > weight_exit):
-                    cell1, cell2= self.equalweight_split_vertically(cell)
+                    cell1, cell2= split[0](cell)
                     cells.append(cell1)
                     cells.append(cell2)
                 else:
@@ -733,7 +651,7 @@ class CellHistogram(object):
 
         out.close()
 
-
+        
     # def fit_1D_y(self):
 
     #     file = 'thetahist_'+str(i)+'.dat'
@@ -772,48 +690,6 @@ class CellHistogram(object):
 
         lcell, rcell = cell.split_vertically(xsplit,
                                             cell.pts[:isplit-1],cell.pts[isplit-1:])
-
-        maxGapFac = 5
-        for subcell in [lcell,rcell]:
-            subcell.pts.sort()
-            d1L = subcell.pts[1].x-subcell.corner.x
-            d12L = subcell.pts[2].x -subcell.pts[1].x
-
-            d1R = subcell.width - (subcell.pts[-1].x-subcell.corner.x)
-            d12R = subcell.pts[-1].x - subcell.pts[-2].x
-
-            if d1L > maxGapFac*d12L:
-                d12L /= 10
-                subcell.width = subcell.width - (subcell.pts[1].x - d12L - subcell.corner.x)
-                subcell.corner.x = subcell.pts[1].x - d12L
-
-            if d1R > maxGapFac*d12R:
-                d12R /= 10
-                subcell.width = subcell.pts[-1].x + d12R - subcell.corner.x
-
-            for pt in subcell.pts:
-                pt.exchange_xy()
-
-            subcell.pts.sort()
-            for pt in subcell.pts:
-                pt.exchange_xy()
-
-            d1D = subcell.pts[1].y-subcell.corner.y
-            d12D = subcell.pts[2].y -subcell.pts[1].y
-
-            d1U = subcell.height - (subcell.pts[-1].y-subcell.corner.y)
-            d12U = subcell.pts[-1].y -subcell.pts[-2].y
-
-            if d1D > maxGapFac*d12D:
-                d12D /= 10
-                subcell.height = subcell.height - (subcell.pts[1].y-d12D -subcell.corner.y)
-                subcell.corner.y = subcell.pts[1].y - d12D
-                #                corner_y = cell.corner.y
-                #                height = cell.height
-            if d1U > maxGapFac*d12U:
-                d12U /= 10
-                subcell.height = subcell.pts[-1].y + d12U - subcell.corner.y
-
         return lcell, rcell
 
 
@@ -837,49 +713,6 @@ class CellHistogram(object):
         dcell, ucell = cell.split_horizontally(ysplit,
                                             cell.pts[:isplit-1],cell.pts[isplit-1:])
 
-        maxGapFac = 5
-        for subcell in [dcell,ucell]:
-
-            subcell.pts.sort()
-            d1L = subcell.pts[1].x-subcell.corner.x
-            d12L = subcell.pts[2].x -subcell.pts[1].x
-
-            d1R = subcell.width - (subcell.pts[-1].x-subcell.corner.x)
-            d12R = subcell.pts[-1].x - subcell.pts[-2].x
-
-            if d1L > maxGapFac*d12L:
-                d12L /= 10
-                subcell.width = subcell.width - (subcell.pts[1].x-d12L -subcell.corner.x)
-                subcell.corner.x = subcell.pts[1].x-d12L
-                #                corner_y = cell.corner.y
-                #                height = cell.height
-            if d1R > maxGapFac*d12R:
-                d12R /= 10
-                subcell.width = subcell.pts[-1].x + d12R - subcell.corner.x
-
-            for pt in subcell.pts:
-                pt.exchange_xy()
-            subcell.pts.sort()
-            for pt in subcell.pts:
-                pt.exchange_xy()
-
-            d1D = subcell.pts[1].y-subcell.corner.y
-            d12D = subcell.pts[2].y -subcell.pts[1].y
-
-            d1U = subcell.height - (subcell.pts[-1].y-subcell.corner.y)
-            d12U = subcell.pts[-1].y -subcell.pts[-2].y
-
-            if d1D > maxGapFac*d12D:
-                d12D /= 10
-                subcell.height = subcell.height - (subcell.pts[1].y-d12D -subcell.corner.y)
-                subcell.corner.y = subcell.pts[1].y-d12D
-                #                corner_y = cell.corner.y
-                #                height = cell.height
-            if d1U > maxGapFac*d12U:
-                d12U /= 10
-                subcell.height = subcell.pts[-1].y + d12U - subcell.corner.y
-
-                
         return dcell,ucell
 
     def multi_equalweight_split_vertically(self,cell,npart):
@@ -951,7 +784,6 @@ class CellHistogram(object):
         lcell, rcell = self.cells[i].split_vertically(xsplit,
                                             y[:isplit],y[isplit:])
         
-
         self.cells[i:i+1] = lcell, rcell        
 
     def equalpts_split_horizontally(self,i):
@@ -992,90 +824,10 @@ class CellHistogram(object):
             pc = PatchCollection(rectangles, facecolor='w', edgecolor='b' )
 
             ax.add_collection(pc)
-
         plt.xlim((self.canvas.corner.x,self.width))
         plt.ylim((self.canvas.corner.y,self.height))
-
         plt.show()
 
-    # def export_histogram_cell(self,file,cells):
-    #     out = open(file,'w')
-    #     for cell in cells:
-    #         s = str(cell.corner.x) + "d0" + "\t" + str(cell.corner.y) + "d0" + "\t" + \
-    #             str(cell.width) + "d0" + "\t" + str(cell.height) + "d0" + "\n" 
-    #         out.write(s)
-    #     out.close()
-
-
-    # def export_histogram(self,file,fit_type='cell'):
-    #     """ Export the 2d/1D mesh in raw text output file."""
-
-    #     method_name = 'export_histogram_' + str(fit_type)
-    #     export_histogram_method = getattr(self, method_name) 
-    #     return export_histogram_method(file)
-
-    # def export_histogram_cell(self,file):
-    #     if self.npts == 0:
-    #         if len(self.cells)<2:
-    #             print "The histogram is empty, nothing to export"
-    #             return 
-    #     out = open(file,'w')
-    #     for cell in self.cells:
-    #         s = str(cell.corner.x) + "\t" + str(cell.corner.y) + "\t" + \
-    #             str(cell.width) + "\t" + str(cell.height) + "\n" 
-    #         out.write(s)
-    #     out.close()
-
-    # def export_histogram_1D_x(self,file):
-    #     if self.npts == 0:
-    #         if len(self.intervals_x)<2:
-    #             print "The histogram is empty, nothing to export"
-    #             return     
-    #     out = open(file,'w')
-    #     nintervals_x = len(self.intervals_x)
-    #     tmp = [self.intervals_x[i].corner for i in range(nintervals_x)]
-    #     tmp_sort = [self.intervals_x[i].corner for i in range(nintervals_x)]
-    #     tmp_sort.sort()
-    #     for i in range(nintervals_x-1):
-    #         bin_width = tmp_sort[i+1].x - tmp_sort[i].x
-    #         s = str(tmp_sort[i].x) + "\t" + str(tmp_sort[i+1].x) + "\t" \
-    #             + str(self.intervals_x[tmp.index(tmp_sort[i])].weight/bin_width) + "\t" \
-    #             + str(self.intervals_x[tmp.index(tmp_sort[i])].error()/bin_width) + "\n" 
-    #         out.write(s)
-    #     last_index = tmp.index(tmp_sort[nintervals_x-1])
-    #     bin_width = self.intervals_x[last_index].width
-    #     s = str(tmp_sort[nintervals_x-1].x) + "\t" + str(tmp_sort[nintervals_x-1].x \
-    #         + self.intervals_x[last_index].width) \
-    #         + "\t" + str(self.intervals_x[last_index].weight/bin_width) \
-    #         + "\t" + str(self.intervals_x[last_index].error()/bin_width) + "\n" 
-    #     out.write(s)
-    #     out.close()
-
-    # def export_histogram_1D_y(self,file):
-    #     if self.npts == 0:
-    #         if len(self.intervals_y)<2:
-    #             print "The histogram is empty, nothing to export"
-    #             return     
-    #     out = open(file,'w')
-    #     nintervals_y = len(self.intervals_y)
-    #     tmp = [self.intervals_y[i].corner for i in range(nintervals_y)]
-    #     tmp_sort = [self.intervals_y[i].corner for i in range(nintervals_y)]
-    #     tmp_sort.sort()
-    #     for i in range(nintervals_y-1):
-    #         bin_width = tmp_sort[i+1].y - tmp_sort[i].y
-    #         s = str(tmp_sort[i].y) + "\t" + str(tmp_sort[i+1].y) + "\t" \
-    #             + str(self.intervals_y[tmp.index(tmp_sort[i])].weight/bin_width) + "\t" \
-    #             + str(self.intervals_y[tmp.index(tmp_sort[i])].error()/bin_width) + "\n" 
-    #         out.write(s)
-    #     last_index = tmp.index(tmp_sort[nintervals_y-1])
-    #     bin_width = self.intervals_x[last_index].height
-    #     s = str(tmp_sort[nintervals_y-1].y) + "\t" + str(tmp_sort[nintervals_y-1].y \
-    #         + self.intervals_x[last_index].width) \
-    #         + "\t" + str(self.intervals_y[last_index].weight/bin_width) \
-    #         + "\t" + str(self.intervals_y[last_index].error()/bin_width) + "\n" 
-    #     out.write(s)
-    #     out.close()
-    
 
 class fit2D_energy_theta(CellHistogram):
     
@@ -1094,7 +846,6 @@ class fit2D_energy_theta(CellHistogram):
         super(fit2D_energy_theta,self).__init__(Point(self.E_min,self.theta_min), \
                                     self.E_max-self.E_min,self.theta_max-self.theta_min,50)
         self.add_pts(self.data)
-        
 
     def heaviside(self,x):
         if x>0:
@@ -1105,45 +856,64 @@ class fit2D_energy_theta(CellHistogram):
         
     def max_travel_distance(self,theta,cphi,sphi):
         depth = self.fit2D_card['depth']
-        xmin = -self.fit2D_card['x_side']/2.
-        xmax = self.fit2D_card['x_side']/2.
-        ymin = -self.fit2D_card['y_side']/2.
-        ymax = self.fit2D_card['y_side']/2.
-        sth = np.sin(theta)
-        z1 = self.fit2D_card['d_target_detector']
+        z1 = self.fit2D_card['d_target_detector']        
         z2 = z1 + depth
-        x1 = z1*sth*cphi
-        y1 = z1*sth*sphi
-        in_z1 = self.heaviside(x1-xmin)*self.heaviside(xmax-x1) \
-                *self.heaviside(y1-ymin)*self.heaviside(ymax-y1)
-        if in_z1 == 0.:
-            return 0.
-        x2 = z2*sth*cphi
-        y2 = z2*sth*sphi
-        in_z2 = self.heaviside(x2-xmin)*self.heaviside(xmax-x2) \
-                *self.heaviside(y2-ymin)*self.heaviside(ymax-y2)
-        if in_z2 != 0.:
-            return np.sqrt((x2-x1)**2+(y2-y1)**2+depth**2)
-        if x2 > xmax:
-            x3 =  xmax
-            y3 =  xmax*sphi/cphi
-            z3 =  xmax/sth/cphi 
-            return np.sqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
-        if x2 < xmin:
-            x3 =  xmin          
-            y3 =  xmin*sphi/cphi
-            z3 =  xmin/sth/cphi 
-            return np.sqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
-        if y2 > ymax:
-            x3 =  ymax*cphi/sphi
-            y3 =  ymax
-            z3 =  ymax/sth/sphi
-            return np.sqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
-        if y2 < ymin:
-            x3 =  ymin*cphi/sphi
-            y3 =  ymin
-            z3 =  ymin/sth/sphi
-            return np.sqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
+
+        # cylinder detector
+        if (self.fit2D_card['cylinder']):
+            theta_min = self.fit2D_card['theta_min']
+            if theta_min!=0.:
+                print('Error: theta_min != 0. do not supported!')
+                exit(-1)
+            theta_max = self.fit2D_card['theta_max']
+            if theta > theta_max:
+                return 0.
+            radius = z1*np.tan(theta_max)
+            theta_star = np.arctan(radius/z2)
+            if (theta<theta_star):
+                return depth/np.cos(theta)
+            else:
+                return z1*(np.tan(theta_max)-np.tan(theta))/np.sin(theta)
+
+        # parallelepiped detector
+        if (self.fit2D_card['parallelepiped']): 
+            xmin = -self.fit2D_card['x_side']/2.
+            xmax = self.fit2D_card['x_side']/2.
+            ymin = -self.fit2D_card['y_side']/2.
+            ymax = self.fit2D_card['y_side']/2.
+            tgth = np.tan(theta)
+            x1 = z1*tgth*cphi
+            y1 = z1*tgth*sphi
+            in_z1 = self.heaviside(x1-xmin)*self.heaviside(xmax-x1) \
+                    *self.heaviside(y1-ymin)*self.heaviside(ymax-y1)
+            if in_z1 == 0.:
+                return 0.
+            x2 = z2*tgth*cphi
+            y2 = z2*tgth*sphi
+            in_z2 = self.heaviside(x2-xmin)*self.heaviside(xmax-x2) \
+                    *self.heaviside(y2-ymin)*self.heaviside(ymax-y2)
+            if in_z2 != 0.:
+                return np.sqrt((x2-x1)**2+(y2-y1)**2+depth**2)
+            if x2 > xmax:
+                x3 =  xmax
+                y3 =  xmax*sphi/cphi
+                z3 =  xmax/tgth/cphi 
+                return np.sqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
+            if x2 < xmin:
+                x3 =  xmin          
+                y3 =  xmin*sphi/cphi
+                z3 =  xmin/tgth/cphi 
+                return np.sqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
+            if y2 > ymax:
+                x3 =  ymax*cphi/sphi
+                y3 =  ymax
+                z3 =  ymax/tgth/sphi
+                return np.sqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
+            if y2 < ymin:
+                x3 =  ymin*cphi/sphi
+                y3 =  ymin
+                z3 =  ymin/tgth/sphi
+                return np.sqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
 
         
     def eff_function(self,E,theta,cphi,sphi):
@@ -1158,8 +928,6 @@ class fit2D_energy_theta(CellHistogram):
         theta_max = 0.
         npass = 0
         data = []
-        print(os.getcwd())
-        print(int(self.proc_characteristics['DM']))
         lhe_evts = lhe_parser.EventFile(input_lhe_evts)
         norm = self.fit2D_card['flux_norm']
         nevt = len(lhe_evts)

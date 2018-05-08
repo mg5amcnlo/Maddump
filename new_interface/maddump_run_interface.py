@@ -41,7 +41,7 @@ _launch_parser.add_option("-M", "--madspin", default=False, action='store_true',
                             help="Run the madspin package")
 
 
-class param_card_iterator(param_card_mod.ParamCardIterator):
+class paramCardIterator(param_card_mod.ParamCardIterator):
 
     def write_summary(self, path, order=None, lastline=False, nbcol=20):
         """ """
@@ -51,9 +51,9 @@ class param_card_iterator(param_card_mod.ParamCardIterator):
         path2= pjoin(predir, 'electron', name)
         path3= pjoin(predir, 'ENS', name)
         
-        super(param_card_iterator, self).write_summary(path1, order)
-        super(param_card_iterator, self).write_summary(path2, order)
-        super(param_card_iterator, self).write_summary(path3, order)
+        super(paramCardIterator, self).write_summary(path1, order)
+        super(paramCardIterator, self).write_summary(path2, order)
+        super(paramCardIterator, self).write_summary(path3, order)
 
 
 #===============================================================================
@@ -74,7 +74,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
 
         self.dir_path = dir_path
         self.me_dir = dir_path
-        #self.param_card_iterator = [] #a placeholder containing a generator of paramcard for scanning
+        self.param_card_iterator = [] #a placeholder containing a generator of paramcard for scanning
         
         #A shared param card object to the interface.
         #All parts of the code should read this card.
@@ -144,7 +144,18 @@ class MADDUMPRunCmd(cmd.CmdShell):
         return self.proc_characteristics['BSM_model']
         # self.mg5.exec_cmd('import model name OPTIONS')
         # return self.mg5._curr_model
+
         
+    def do_compute_widths(self, line):
+        """normal fct but ensure that self.maddm_card is up-to-date"""
+        
+        # try:
+        #     self.mother_interface.maddm_card = self.maddm
+        # except Exception,error:
+        #     logger.error("Invalid command: %s " % error)
+        #     return
+        return super(MadDumpSelector, self).do_compute_widths(line)
+
     def help_compute_widths(self, line):
         
         return self.run_mg5([' help compute_widths ' + line])    
@@ -211,7 +222,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
         self.ask_run_configuration(mode=[], force=force)
         self.run_launch()
         
-    @common_run.scanparamcardhandling(iteratorclass=param_card_iterator)
+    @common_run.scanparamcardhandling(iteratorclass=paramCardIterator)
     def run_launch(self):
         prod_dir = 'production'
         # generate events: production
@@ -244,8 +255,9 @@ class MADDUMPRunCmd(cmd.CmdShell):
             os.chdir('../')
             os.system('./bin/generate_events %s -f'%self.run_name)
             os.chdir('../')
+        os.chdir('../')
 
-
+        
     def store_for_scan(self):
         return {}
 
@@ -755,16 +767,6 @@ class MadDumpSelector(common_run.AskforEditCard):
 #         except cmd.NotValidInput:
 #             return common_run.AskforEditCard.default(self, line)     
         
-
-#     def do_compute_widths(self, line):
-#         """normal fct but ensure that self.maddm_card is up-to-date"""
-        
-#         try:
-#             self.mother_interface.maddm_card = self.maddm
-#         except Exception,error:
-#             logger.error("Invalid command: %s " % error)
-#             return
-#         return super(MadDumpSelector, self).do_compute_widths(line)
             
 #     def do_help(self, line, conflict_raise=False, banner=True):
 #         """proxy for do_help"""

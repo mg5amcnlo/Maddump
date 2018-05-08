@@ -757,7 +757,7 @@ c     once a cell is selected, a value of theta is taken uniformly inside it
       x_side_on2 = x_side/2d0
       y_side_on2 = y_side/2d0
       
-      radius = d_target_detector*dsin(theta)
+      radius = d_target_detector*dtan(theta)
       
       if (y_side_on2 .gt. x_side_on2) then
          
@@ -847,68 +847,90 @@ c     once a cell is selected, a value of theta is taken uniformly inside it
       implicit none
       include 'fit2D.inc'
       real * 8 theta,cphi,sphi
-      real * 8 sth,z1,z2,x1,y1,x2,y2,in_z1,in_z2,x3,y3,z3
-      real * 8 heaviside,xmax,xmin,ymax,ymin 
-      
-      xmax = 0.5d0 * x_side 
-      xmin = -0.5d0 * x_side 
-      
-      ymax = 0.5d0 * y_side 
-      ymin = -0.5d0 * y_side 
-      
-      sth = dsin(theta)
+      real * 8 radius,tgth,z1,z2,x1,y1,x2,y2,in_z1,in_z2,x3,y3,z3
+      real * 8 heaviside,theta_star,xmax,xmin,ymax,ymin 
+
       z1 = d_target_detector
       z2 = z1 + depth
 
-      x1 = z1*sth*cphi
-      y1 = z1*sth*sphi      
-      
-      in_z1 = heaviside(x1-xmin)*heaviside(xmax-x1)
-     &     *heaviside(y1-ymin)*heaviside(ymax-y1)
-      
-      if (in_z1 .eq. 0d0) then
-         max_travel_distance =0d0
-         return
-      endif
-
-      x2 = z2*sth*cphi
-      y2 = z2*sth*sphi
-
-      in_z2 = heaviside(x2-xmin)*heaviside(xmax-x2)
-     &       *heaviside(y2-ymin)*heaviside(ymax-y2)
-
-      if (in_z2 .ne. 0d0) then
-         max_travel_distance = dsqrt((x2-x1)**2+(y2-y1)**2+depth**2)
-         return 
+c--- cylinder detector
+      if(cylinder) then
+         if (theta.gt.theta_max) then
+            max_travel_distance =0d0
+            return
+         endif
+         radius = z1*dtan(theta_max)
+         theta_star = datan(radius/z2)
+         if (theta.lt.theta_star) then
+            max_travel_distance = depth/dcos(theta)
+            return
+         else
+            max_travel_distance = z1*(dtan(theta_max)-dtan(theta))
+     &                               /dsin(theta)
+            return
+         endif
       endif
       
-      if (x2 .gt. xmax) then
-         x3 =  xmax
-         y3 =  xmax*sphi/cphi
-         z3 =  xmax/sth/cphi
-         max_travel_distance = dsqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
-         return 
-      endif
-      if (x2 .lt. xmin) then 
-         x3 =  xmin          
-         y3 =  xmin*sphi/cphi
-         z3 =  xmin/sth/cphi
-         max_travel_distance = dsqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
-         return 
-      endif
-      if (y2 .gt. ymax) then
-         x3 =  ymax*cphi/sphi
-         y3 =  ymax
-         z3 =  ymax/sth/sphi
-         max_travel_distance = dsqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
-         return 
-      endif
-      if (y2 .lt. ymin) then
-         x3 =  ymin*cphi/sphi
-         y3 =  ymin
-         z3 =  ymin/sth/sphi
-         max_travel_distance = dsqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
-         return 
+c--- parallelepiped detector
+      if(parallelepiped) then
+         
+         xmax = 0.5d0 * x_side 
+         xmin = -0.5d0 * x_side 
+      
+         ymax = 0.5d0 * y_side 
+         ymin = -0.5d0 * y_side 
+      
+         tgth = dtan(theta)
+         x1 = z1*tgth*cphi
+         y1 = z1*tgth*sphi      
+      
+         in_z1 = heaviside(x1-xmin)*heaviside(xmax-x1)
+     &        *heaviside(y1-ymin)*heaviside(ymax-y1)
+         
+         if (in_z1 .eq. 0d0) then
+            max_travel_distance =0d0
+            return
+         endif
+
+         x2 = z2*tgth*cphi
+         y2 = z2*tgth*sphi
+
+         in_z2 = heaviside(x2-xmin)*heaviside(xmax-x2)
+     &        *heaviside(y2-ymin)*heaviside(ymax-y2)
+
+         if (in_z2 .ne. 0d0) then
+            max_travel_distance = dsqrt((x2-x1)**2+(y2-y1)**2+depth**2)
+            return 
+         endif
+      
+         if (x2 .gt. xmax) then
+            x3 =  xmax
+            y3 =  xmax*sphi/cphi
+            z3 =  xmax/tgth/cphi
+            max_travel_distance=dsqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
+            return 
+         endif
+         if (x2 .lt. xmin) then 
+            x3 =  xmin          
+            y3 =  xmin*sphi/cphi
+            z3 =  xmin/tgth/cphi
+            max_travel_distance=dsqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
+            return 
+         endif
+         if (y2 .gt. ymax) then
+            x3 =  ymax*cphi/sphi
+            y3 =  ymax
+            z3 =  ymax/tgth/sphi
+            max_travel_distance=dsqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
+            return 
+         endif
+         if (y2 .lt. ymin) then
+            x3 =  ymin*cphi/sphi
+            y3 =  ymin
+            z3 =  ymin/tgth/sphi
+            max_travel_distance=dsqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
+            return 
+         endif
       endif
 
       end
