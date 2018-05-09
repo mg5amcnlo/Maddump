@@ -843,8 +843,14 @@ class fit2D_energy_theta(CellHistogram):
         self.npass,self.E_min,self.E_max,self.theta_min,self.theta_max,self.data = \
                     self.store_reweight(input_lhe_evts)
 
+        print(self.npass)
+        
+        for pt in self.data:
+            print(pt.weight)
         super(fit2D_energy_theta,self).__init__(Point(self.E_min,self.theta_min), \
                                     self.E_max-self.E_min,self.theta_max-self.theta_min,50)
+
+        print(self.weight)
         self.add_pts(self.data)
 
     def heaviside(self,x):
@@ -852,13 +858,16 @@ class fit2D_energy_theta(CellHistogram):
             return 1
         else:
             return 0
-
         
-    def max_travel_distance(self,theta,cphi,sphi):
+    def max_travel_distance(self,ctheta,stheta,cphi,sphi):
         depth = self.fit2D_card['depth']
         z1 = self.fit2D_card['d_target_detector']        
         z2 = z1 + depth
 
+        if (ctheta<0.):
+            return 0.
+        else:
+            theta = np.arccos(ctheta)
         # cylinder detector
         if (self.fit2D_card['cylinder']):
             theta_min = self.fit2D_card['theta_min']
@@ -871,9 +880,9 @@ class fit2D_energy_theta(CellHistogram):
             radius = z1*np.tan(theta_max)
             theta_star = np.arctan(radius/z2)
             if (theta<theta_star):
-                return depth/np.cos(theta)
+                return depth/ctheta
             else:
-                return z1*(np.tan(theta_max)-np.tan(theta))/np.sin(theta)
+                return z1*(np.tan(theta_max)-np.tan(theta))/stheta
 
         # parallelepiped detector
         if (self.fit2D_card['parallelepiped']): 
@@ -916,9 +925,9 @@ class fit2D_energy_theta(CellHistogram):
                 return np.sqrt((x3-x1)**2+(y3-y1)**2+(z3-z1)**2)
 
         
-    def eff_function(self,E,theta,cphi,sphi):
+    def eff_function(self,E,ctheta,stheta,cphi,sphi):
         depth = self.fit2D_card['depth']
-        return self.max_travel_distance(theta,cphi,sphi)*np.cos(theta)/depth
+        return self.max_travel_distance(ctheta,stheta,cphi,sphi)*ctheta/depth
 
     
     def store_reweight(self,input_lhe_evts):
@@ -936,14 +945,16 @@ class fit2D_energy_theta(CellHistogram):
                 if particle.status == 1: # stable final state 
                     if abs(particle.pid) == int(self.proc_characteristics['DM']):
                         p = lhe_parser.FourMomentum(particle)
-                        theta = np.arccos(p.pz/p.norm)
+                        ctheta = (p.pz/p.norm)
+                        stheta = np.sqrt(1.-ctheta**2)
                         cphi = p.px/np.sqrt(p.px**2+p.py**2)
                         sphi = p.py/np.sqrt(p.px**2+p.py**2)
-                        data.append(WeightedPoint(p.E,theta, \
-                                    norm/nevt*self.eff_function(p.E,theta,cphi,sphi)))
-                
-                        if self.eff_function(p.E,theta,cphi,sphi) != 0:                    
+                        weight = self.eff_function(p.E,ctheta,stheta,cphi,sphi)
+                        if weight != 0.:
                             npass+=1
+                            theta = np.arccos(ctheta)
+                            data.append(WeightedPoint(p.E,theta, \
+                                                      norm/nevt*weight))
                             if p.E < E_min:
                                 E_min = p.E
                             if p.E > E_max:
