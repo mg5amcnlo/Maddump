@@ -4,6 +4,7 @@ import madgraph.various.misc as misc
 import madgraph.interface.common_run_interface as common_run
 import madgraph.interface.extended_cmd as cmd
 import madgraph.interface.launch_ext_program as launch_ext
+import madgraph.iolibs.files as files
 import models.check_param_card as param_card_mod
 import subprocess
 import logging
@@ -141,9 +142,10 @@ class MADDUMPRunCmd(cmd.CmdShell):
         return proc_characteristics
     
     def get_model(self):
-        return self.proc_characteristics['BSM_model']
-        # self.mg5.exec_cmd('import model name OPTIONS')
-        # return self.mg5._curr_model
+        
+        model_name =  self.proc_characteristics['BSM_model']
+        self.mother.exec_cmd('import model %s' % model_name)
+        return self.mother._curr_model
 
         
     def do_compute_widths(self, line):
@@ -224,23 +226,22 @@ class MADDUMPRunCmd(cmd.CmdShell):
         
     @common_run.scanparamcardhandling(iteratorclass=paramCardIterator)
     def run_launch(self):
-        prod_dir = 'production'
-        # generate events: production
-        os.chdir(pjoin(self.dir_path,prod_dir))
-        os.system('./bin/generate_events %s -f'%self.run_name) 
         
-        misc.sprint(os.getcwd())
-        os.chdir('..')
-        misc.sprint(os.getcwd())
+        misc.call(['./bin/generate_events', self.run_name, '-f'],
+                  cwd=pjoin(self.dir_path, 'production'))
+
         
         for dir in self.interaction_dir:
-            os.chdir(pjoin(dir,'Cards'))
-            fit2D_card = fit2D.Fit2DCard(pjoin('fit2D_card.dat'))
-            fit2D_card.write_include_file('../Source')            
+            cpath = pjoin(self.dir_path, dir, 'Cards')
+
+            fit2D_card = fit2D.Fit2DCard(pjoin(cpath, 'fit2D_card.dat'))
+            fit2D_card.write_include_file(pjoin(self.dir_path, dir, 'Source'))           
+            
             try:
                 os.remove('unweighted_events.lhe.gz')
             except OSError:
                 pass
+            
             if 'DIS' in dir:
                 interaction_channel = 'DIS'
             elif 'electron' in dir:
@@ -248,15 +249,16 @@ class MADDUMPRunCmd(cmd.CmdShell):
             else:
                 interaction_channel = None
                 
-            os.system('ln -s ../../'+prod_dir+'/Events/'+self.run_name+'/unweighted_events.lhe.gz')
-            hist2D_energy_angle = meshfitter.fit2D_energy_theta(self.proc_characteristics, \
+            files.ln(pjoin(self.dir_path, 'production','Events', self.run_name, 'unweighted_events.lhe.gz')
+                     , cpath)
+            
+            with misc.chdir(cpath):
+                hist2D_energy_angle = meshfitter.fit2D_energy_theta(self.proc_characteristics, \
                                                 'unweighted_events.lhe.gz',interaction_channel)
-            hist2D_energy_angle.do_fit()
-            os.chdir('../')
-            os.system('./bin/generate_events %s -f'%self.run_name)
-            os.chdir('../')
-        os.chdir('../')
-
+                hist2D_energy_angle.do_fit()
+            
+            misc.call(['./bin/generate_events', self.run_name, '-f'],
+                  cwd=pjoin(self.dir_path, 'dir'))
         
     def store_for_scan(self):
         return {}

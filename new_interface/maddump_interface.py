@@ -227,7 +227,6 @@ class MadDump_interface(master_interface.MasterCmd):
                 except:
                     i+=1
                     continue
-                os.chdir(self._out_dir)
                 not_created = False                
 
         else:
@@ -236,12 +235,12 @@ class MadDump_interface(master_interface.MasterCmd):
                 os.makedirs(self._out_dir)
             except:
                 raise DMError, 'Output command error: the directory %s already exists!' % self._out_dir 
-            os.chdir(self._out_dir)
+
 
         #create a directory for common cards: param_card and fit2D_card
         #stored in the list cards
-        os.makedirs('Cards')
-        cards_dir = 'Cards/'
+        cards_dir = pjoin(self._out_dir, 'Cards')
+        os.makedirs(cards_dir)
         cards = ['param_card.dat','param_card_default.dat',
                  'fit2D_card.dat','fit2D_card_default.dat']
         
@@ -250,31 +249,34 @@ class MadDump_interface(master_interface.MasterCmd):
             if proc['id'] < 1000:
                 self._curr_matrix_elements = helas_objects.HelasMultiProcess()
                 amps = [ amp for amp in self._curr_amps if amp.get('process')['id'] == proc['id'] ]
-                line = 'production'
+                line = pjoin(self._out_dir,'production')
                 with misc.TMP_variable(self, ['_curr_proc_defs','_curr_amps','_done_export'], [proc,amps,None]):                    
                     super(MadDump_interface, self).do_output(line)
                 # check whether the param_card is already in the common Cards dir
                 # otherwise it is copied from the current process 
                 if cards[0] not in os.listdir(cards_dir):
                     for i in range(2):
-                        cp('production/Cards/'+cards[i],
-                           cards_dir+cards[i])
-                        os.remove('production/Cards/'+cards[i])
-                        os.symlink(pjoin('..','..',cards_dir,cards[i]), pjoin('production','Cards',cards[i]))
+                        pcard = pjoin(self._out_dir,'production', 'Cards')
+                        cp(pjoin(pcard, cards[i]), cards_dir)
+                        os.remove(pjoin(pcard, cards[i]))
+                        ln(pjoin(cards_dir, cards[i]), pcard, ) 
+
 
                 # put the run_card in the common Cards dir and create a symbolic link
                 # in the production/Cards dir
-                cp('production/Cards/'+'run_card.dat', cards_dir+'run_card.dat')
-                cp('production/Cards/'+'run_card_default.dat', cards_dir+'run_card_default.dat')
+                pcards_dir = pjoin(self._out_dir, 'production', 'Cards') 
+                cp(pjoin(pcards_dir, 'run_card.dat'), pjoin(cards_dir))
+                cp(pjoin(pcards_dir, 'run_card_default.dat'), pjoin(cards_dir))
+                
                 try:
-                    for card in cards:
-                        os.remove('production/Cards/'+'run_card.dat')
-                        os.remove('production/Cards/'+'run_card_default.dat')
+                    #for card in cards: #remove this pointless loop
+                    os.remove(pjoin(pcards_dir, 'run_card.dat'))
+                    os.remove(pjoin(pcards_dir, 'run_card_default.dat'))
                 except OSError:
                     pass
-                
-                os.symlink(pjoin('..','..',cards_dir,'run_card.dat'), pjoin('production','Cards','run_card.dat'))
-                os.symlink(pjoin('..','..',cards_dir,'run_card_default.dat'), pjoin('production','Cards/','run_card_default.dat'))
+                for name in ['run_card.dat', 'run_card_default']:
+                    ln(pjoin(cards_dir, name), pcards_dir)
+                    
             else:
                 self._curr_matrix_elements = helas_objects.HelasMultiProcess()
                 processes_list = self.process_tag.keys()
@@ -284,32 +286,26 @@ class MadDump_interface(master_interface.MasterCmd):
                         break
                 amps = [ amp for amp in self._curr_amps if amp.get('process')['id'] == proc['id'] ]
                 
-                line = 'maddump interaction_' + channel 
+                line = 'maddump %s' % pjoin(self._out_dir, 'interaction_' + channel) 
                 with misc.TMP_variable(self, ['_curr_proc_defs','_curr_amps','_done_export'], [proc,amps,False]):                    
                     super(MadDump_interface, self).do_output(line)
 
-                current_dir = 'interaction_' + channel + '/'
+                current_dir = pjoin(self._out_dir, 'interaction_' + channel)
                 if cards[0] not in os.listdir(cards_dir):
                     for i in range(2):
-                        cp(current_dir+'Cards/'+cards[i],
-                           cards_dir+cards[i])
+                        cp(pjoin(current_dir, 'Cards', cards[i]), pjoin(cards_dir, cards[i]))
                 if cards[2] not in os.listdir(cards_dir):
                     for i in range(2,4):
-                        cp(current_dir+'Cards/'+cards[i],
-                           cards_dir+cards[i])
+                        cp(pjoin(current_dir, 'Cards', cards[i]), pjoin(cards_dir, cards[i]))
+
                 try:
                     for card in cards:
-                        os.remove(current_dir+'Cards/'+card)
+                        os.remove(pjoin(current_dir,'Cards', card))
                 except OSError:
                     pass
                 # os.symlink(os.path.join('production',paramcard_path), os.path.join(current_dir, paramcard_path))
                 for card in cards:
-                    os.symlink(pjoin('..','..',cards_dir,card), pjoin(current_dir,'Cards',card))
-                    #ln(cards_dir + card, current_dir + card, log=False)
-                # if 'proc_characteristics' not in os.listdir(cards_dir):
-                #     ln(current_dir+'SubProcesses/proc_characteristics', cards_dir + 'proc_characteristics', log=False)
-                    
-        os.chdir('../')
+                    ln(pjoin(cards_dir, card),  pjoin(current_dir,'Cards'))
                 
     # def find_output_type(self, path):
     #     if os.path.exists(pjoin(path,'matrix_elements','proc_characteristics')):
@@ -330,7 +326,7 @@ class MadDump_interface(master_interface.MasterCmd):
             self._MDUMP = maddump_run_interface.MADDUMPRunCmd(dir_path = self._out_dir, options = self.options)
         else:
             self._MDUMP = maddump_run_interface.MADDUMPRunCmd(dir_path = line, options = self.options)
-            
+        self.define_child_cmd_interface(self._MDUMP,  interface=False)
         self._MDUMP.exec_cmd('launch')
         # if args[0] != 'maddm':
         #     return super(MadDM_interface, self).do_launch(line)
