@@ -48,13 +48,11 @@ class paramCardIterator(param_card_mod.ParamCardIterator):
         """ """
         predir,name = os.path.split(path)
         
-        path1= pjoin(predir, 'DIS', name)
-        path2= pjoin(predir, 'electron', name)
-        path3= pjoin(predir, 'ENS', name)
+        for t in ['DIS', 'electron', 'ENS']:
+            if os.path.exists(pjoin(predir, 'interaction_%s' % t)):
+                path = pjoin(predir, 'interaction_%s' % t, name)
+                super(paramCardIterator, self).write_summary(path, order)
         
-        super(paramCardIterator, self).write_summary(path1, order)
-        super(paramCardIterator, self).write_summary(path2, order)
-        super(paramCardIterator, self).write_summary(path3, order)
 
 
 #===============================================================================
@@ -258,9 +256,9 @@ class MADDUMPRunCmd(cmd.CmdShell):
                 hist2D_energy_angle.do_fit()
             
             misc.call(['./bin/generate_events', self.run_name, '-f'],
-                  cwd=pjoin(self.dir_path, 'dir'))
+                  cwd=pjoin(self.dir_path, dir))
         
-    def store_for_scan(self):
+    def store_scan_result(self):
         return {}
 
     def set_run_name(self, name):
