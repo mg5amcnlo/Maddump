@@ -142,7 +142,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
     def get_model(self):
         
         model_name =  self.proc_characteristics['BSM_model']
-        self.mother.exec_cmd('import model %s' % model_name)
+        self.mother.exec_cmd('import model %s' % model_name, child=False)
         return self.mother._curr_model
 
         
@@ -926,7 +926,6 @@ class MadDumpSelector(common_run.AskforEditCard):
             args.remove('=')
         args = [ a.lower() for a in args]
 
-        misc.sprint(args[0])
         if args[0] in ['fit2d']:
             start = 1
             if args[1] == 'default':
