@@ -843,14 +843,12 @@ class fit2D_energy_theta(CellHistogram):
         self.npass,self.E_min,self.E_max,self.theta_min,self.theta_max,self.data = \
                     self.store_reweight(input_lhe_evts)
 
-        print(self.npass)
         
         for pt in self.data:
             print(pt.weight)
         super(fit2D_energy_theta,self).__init__(Point(self.E_min,self.theta_min), \
                                     self.E_max-self.E_min,self.theta_max-self.theta_min,50)
 
-        print(self.weight)
         self.add_pts(self.data)
 
     def heaviside(self,x):
@@ -939,6 +937,13 @@ class fit2D_energy_theta(CellHistogram):
         data = []
         lhe_evts = lhe_parser.EventFile(input_lhe_evts)
         norm = self.fit2D_card['flux_norm']
+        prod_xsec_flag = self.fit2D_card['prod_xsec_in_norm']
+        if prod_xsec_flag:
+            norm = norm*lhe_evts.cross
+        target_density = self.fit2D_card['target_density']
+        depth = self.fit2D_card['depth']
+        fac_cm2_pb = 10**36
+        norm = norm*target_density*depth/fac_cm2_pb
         nevt = len(lhe_evts)
         for event in lhe_evts:
             for particle in event:

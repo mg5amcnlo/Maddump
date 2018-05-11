@@ -19,10 +19,11 @@ class Fit2DCard(bannermod.RunCard):
         
         #flux normalization
         self.add_param("flux_norm", 1., comment= 'Overall normalization of the incoming flux without applying cuts')
+        self.add_param("prod_xsec_in_norm", False, comment= 'If True the weight is multiplied by the production cross section')
     
         #detector parameters
         self.add_param("d_target_detector", 1.)
-        self.add_param("total_mass", 10.)
+        self.add_param("target_density", 1)
         
         #cut
         self.add_param("xc", 0., comment= 'x coordinate central point wrt the beam axis')

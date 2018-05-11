@@ -1,9 +1,9 @@
-if '__main__' == __name__:
-    import sys
-    sys.path.append('../../../../')
-    sys.path.append('../../../../madgraph/various')
+# if '__main__' == __name__:
+#     import sys
+#     sys.path.append('../../../../')
+#     sys.path.append('../../../../madgraph/various')
 
-import lhe_parser as lhe_parser
+import madgraph.various.lhe_parser as lhe_parser
 import numpy as np
 import random as random
 import copy as copy
@@ -106,8 +106,3 @@ class LHEtoPYTHIAHadronSTD():
             else:
                 print('Error, quark do not allowed!')
                 exit(-1)
-
-                
-prova = LHEtoPYTHIAHadronSTD('unweighted_events.lhe.gz')
-
-prova.write_PYTHIA_input('out.lhe')

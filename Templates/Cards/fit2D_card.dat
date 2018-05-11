@@ -21,8 +21,9 @@
 # Detector parameters
 #*********************************************************************
    %(flux_norm)s         =  flux_norm ! Overall flux normalization 
+   %(prod_xsec_in_norm)s =  prod_xsec_in_norm ! whether multiply for the production cross section
    %(d_target_detector)s =  d_target_detector ! Distance between the target and the detector in cm 
-   %(total_mass)s        =  total_mass ! Detector total mass in g
+   %(target_density)s    =  target_density ! Number of target particles per unit cube (cm^-3)
 #*********************************************************************
 # Cuts on the detector shape 
 #*********************************************************************

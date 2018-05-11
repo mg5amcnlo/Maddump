@@ -441,11 +441,11 @@ c     histograms flux. The azimuthal angle is set at random.
                call pickphi(theta,rv,phi)
             endif
 
+            travel_dist = max_travel_distance(theta,dcos(phi),dsin(phi))
+     &           *ran1(iseed+3)
+            
 c start debug ---            
 c            write(230,*) theta,dcos(phi),dsin(phi)
-c            travel_dist = max_travel_distance(theta,dcos(phi),dsin(phi))
-c     &           *ran1(iseed+3)
-c
 c            write(*,*) max_travel_distance(theta,dcos(phi),dsin(phi))
 c     &                  ,travel_dist
 c end debug ---

@@ -8,6 +8,9 @@ import madgraph.iolibs.files as files
 import models.check_param_card as param_card_mod
 import subprocess
 import logging
+#import MadSpin.decay as decay
+import MadSpin.interface_madspin as interface_madspin
+import lhe_to_pythia_hadron_std as lheToPythia
 
 pjoin = os.path.join
 logger = logging.getLogger('madgraph.plugin.maddump')
@@ -83,7 +86,6 @@ class MADDUMPRunCmd(cmd.CmdShell):
         self.auto_width = set() # keep track of width set on Auto
 
         self.options = options
-
         
     # def check_param_card(self, path, run=True):
     #     """
@@ -142,6 +144,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
     def get_model(self):
         
         model_name =  self.proc_characteristics['BSM_model']
+        print(model_name)
         self.mother.exec_cmd('import model %s' % model_name, child=False)
         return self.mother._curr_model
 
@@ -173,62 +176,115 @@ class MADDUMPRunCmd(cmd.CmdShell):
         (options, args) = _launch_parser.parse_args(args)
         #self.check_launch(args, options)
         options = options.__dict__
+                    
+        interaction_dir_all = ['interaction_DIS','interaction_electron','interaction_ENS']
+        listdir = subprocess.check_output("ls %s"%self.dir_path,shell=True).split()
 
+        if 'production' in listdir:
+            self.DMmode='production_interaction'
+        elif 'Events_to_decay' in listdir:
+            self.DMmode = 'decay_interaction'
+        elif 'Events_to_interact' in listdir:
+            self.DMmode = 'interaction_only'
+        else:
+            print('Corrupted directory: no production/Events_to_decay/Events_to_interact directory ')
+            exit(-1)
+            
+        self.interaction_dir = []
+        for dir in listdir:
+            if dir in interaction_dir_all:
+                self.interaction_dir.append(dir)
+                
         if options['name']:
             self.run_name = options['name']
         else:
             i = 1
             while os.path.exists(pjoin(self.dir_path, 'production', 'Events', 'run_%02d' %i)) or\
-                  os.path.exists(pjoin(self.dir_path, 'production', 'Events', 'run_%02d_01' %i)):
+                  os.path.exists(pjoin(self.dir_path, 'Events_to_decay', 'Events', 'run_%02d' %i)) or \
+                  os.path.exists(pjoin(self.dir_path, 'Events_to_interact', 'Events', 'run_%02d' %i)) or \
+                  any([os.path.exists(pjoin(self.dir_path, dir, 'Events', 'run_%02d' %i)) for dir in self.interaction_dir]):
                 i += 1
             self.run_name = 'run_%02d' % i
 
-        #self.run_name = 'run_%02d' % 3
-        
-            
-        interaction_dir_all = ['interaction_DIS','interaction_electron','interaction_ENS']
-        listdir = subprocess.check_output("ls %s"%self.dir_path,shell=True).split()
-
-        self.interaction_dir = []
-        for dir in listdir:
-            if dir in interaction_dir_all:
-                self.interaction_dir.append(dir)
-
         self.proc_characteristics = self.get_proc_characteristics(pjoin(self.dir_path,self.interaction_dir[0],'SubProcesses','proc_characteristics'))
-        
-        # param_card_iterator.write(card_path) #-> this is done by the with statement
-        #         name = misc.get_scan_name(orig_name, next_name)
-        #         path = result_path(obj) % name 
-        #         logger.info("write all cross-section results in %s" % path ,'$MG:BOLD')
-        #         order = summaryorder(obj)()
-        #         param_card_iterator.write_summary(path, order=order)
-            
-        # # determine run_name for name in the output directory:
-        # if '-n' in args:
-        #     self.run_name = args[args.index('-n')+1]
-        #     if os.path.exists(pjoin(self.dir_path, 'output', self.run_name)):
-        #         shutil.rmtree(pjoin(self.dir_path, 'output', self.run_name))
-        #         try:
-        #             shutil.rmtree(pjoin(self.dir_path, 'Indirect','Events', self.run_name))
-        #         except Exception:
-        #             pass
-        # else:
-        #     i = 1
-        #     while os.path.exists(pjoin(self.dir_path, 'output', 'run_%02d' %i)) or\
-        #           os.path.exists(pjoin(self.dir_path, 'output', 'run_%02d_01' %i)):
-        #         i += 1
-        #     self.run_name = 'run_%02d' % i
         
         self.ask_run_configuration(mode=[], force=force)
         self.run_launch()
         
     @common_run.scanparamcardhandling(iteratorclass=paramCardIterator)
     def run_launch(self):
+        try:
+            os.makedirs(pjoin(self.dir_path, 'Events'))
+        except:
+            pass
         
-        misc.call(['./bin/generate_events', self.run_name, '-f'],
-                  cwd=pjoin(self.dir_path, 'production'))
+        if self.DMmode == 'production_interaction':
+            misc.call(['./bin/generate_events', self.run_name, '-f'],
+                      cwd=pjoin(self.dir_path, 'production'))
+            evts_path = pjoin(self.dir_path, 'production', 'Events', self.run_name, 'unweighted_events.lhe.gz') 
 
+        elif self.DMmode == 'decay_interaction':            
+            decay_dir = pjoin(self.dir_path,'Events_to_decay')
+            listdir = subprocess.check_output("ls %s"%decay_dir,shell=True).split()
+            for file in listdir:
+                if any( [ext in file for ext in ['hepmc','lhe']]):
+                    evts_file = file.replace('.hepmc','')
+                    evts_file = evts_file.replace('.lhe','')
+                    evts_file = evts_file.replace('.gz','')
+
+            try:
+                os.makedirs(pjoin(decay_dir,'Events'))
+            except:
+                pass
+            
+            madspin_cmd = interface_madspin.MadSpinInterface()
+            # pass current options to the interface
+            madspin_cmd.mg5cmd.options.update(self.options)
+            madspin_cmd.cluster = None #self.cluster
         
+            madspin_cmd.update_status = lambda *x,**opt: self.update_status(*x, level='madspin',**opt)
+            path = pjoin(self.me_dir, 'Cards', 'madspin_card.dat')
+
+            madspin_cmd.import_command_file(path)
+
+            # create a new run_name directory for this output
+            i = 1
+            while os.path.exists(pjoin(decay_dir,'Events', '%s_decayed_%i' % (self.run_name,i))):
+                i+=1
+            new_run = '%s_decayed_%i' % (self.run_name,i)
+            evt_dir = pjoin(decay_dir, 'Events',new_run)
+
+            os.makedirs(evt_dir)
+            listdir = subprocess.check_output("ls %s"%decay_dir,shell=True).split()
+
+            decayed_file = pjoin(decay_dir,os.path.basename(evts_file)+'_decayed.lhe.gz')
+            print(decayed_file)
+            try:
+                files.mv(decayed_file,pjoin(evt_dir,'unweighted_events.lhe.gz'))
+            except:
+                logger.error('MadSpin fails to create any decayed file.')
+                         
+            # current_file = evts_file.replace('.lhe', '_decayed.lhe')
+            # new_file = pjoin(evt_dir, new_run, )
+            # if not os.path.exists(current_file):
+            #     if os.path.exists(current_file+'.gz'):
+            #         current_file += '.gz'
+            #         new_file += '.gz'
+            #     elif current_file.endswith('.gz') and os.path.exists(current_file[:-3]):
+            #         current_file = current_file[:-3]
+            #         new_file = new_file[:-3]
+            #     else:
+
+            #         return
+            evts_path = pjoin(evt_dir,'unweighted_events.lhe.gz')
+        elif self.DMmode == 'interaction_only':
+            interactionevts_dir = pjoin(self.dir_path,'Events_to_interact')
+            listdir = subprocess.check_output("ls %s"%interactionevts_dir,shell=True).split()
+            for file in listdir:
+                if any( [ext in file for ext in ['hepmc','lhe']]):
+                    evts_file = file            
+            evts_path = pjoin(interactionevts_dir,evts_file)
+
         for dir in self.interaction_dir:
             cpath = pjoin(self.dir_path, dir, 'Cards')
 
@@ -247,8 +303,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
             else:
                 interaction_channel = None
                 
-            files.ln(pjoin(self.dir_path, 'production','Events', self.run_name, 'unweighted_events.lhe.gz')
-                     , cpath)
+            files.ln(evts_path, cpath)
             
             with misc.chdir(cpath):
                 hist2D_energy_angle = meshfitter.fit2D_energy_theta(self.proc_characteristics, \
@@ -257,232 +312,26 @@ class MADDUMPRunCmd(cmd.CmdShell):
             
             misc.call(['./bin/generate_events', self.run_name, '-f'],
                   cwd=pjoin(self.dir_path, dir))
-        
+
+            run_dir = pjoin(self.dir_path, dir,'Events',self.run_name)
+            pythialhe = lheToPythia.LHEtoPYTHIAHadronSTD(pjoin(run_dir,'unweighted_events.lhe.gz'))
+            pythialhe.write_PYTHIA_input(pjoin(run_dir,'pythiainput.lhe'))
+
+            
     def store_scan_result(self):
         return {}
 
     def set_run_name(self, name):
         self.run_name = name
                         
-        # if self.param_card_iterator:
-        #     self.run_name += '_01'
-
-        # # create output directory.
-        # os.mkdir(pjoin(self.dir_path, 'output', self.run_name))
-        
-                 
-#         output = pjoin(self.dir_path, 'output', self.run_name, 'maddm.out') 
-#         misc.call(['./maddm.x', pjoin('output', self.run_name, 'maddm.out')], cwd =self.dir_path)
-#         #Here we read out the results which the FORTRAN module dumped into a file
-#         #called 'maddm.out'. The format is such that the first line is always relic density
-#         # , second line is the nucleon scattering cross section (SI) for proton, third is SI
-#         # nucleon cross section for the neutron etc. If a quantity was not calculated, we output -1
-
-
-#         # Define a dictionary holding the results
-#         result = {}
-#         result['GeV2pb*pb2cm2']   = GeV2pb*pb2cm2 # conversion factor                                                                                                           
-
-#         mdm = self.param_card.get_value('mass', self.proc_characteristics['dm_candidate'][0])
-
-#         result['tot_SM_xsec'] = -1
-#         sigv_indirect = 0.
-
-#         for line in open(pjoin(self.dir_path, output)):
-      
-#                 splitline = line.split()
-#                 #If capture rate is calculated.
-#                 if 'ccap' in line:
-#                     oname = splitline[0].strip(':')+'_'+splitline[1]
-#                     val = splitline[2]
-#                     result[oname.split(':')[0] ] = val
-
-#                 else:
-#                     if self._two2twoLO:
-#                         if 'sigma*v' in line: 
-#                             sigv_temp = float(splitline[1])
-#                             oname = splitline[0].split(':',1)[1] .split('_')
-#                             oname = oname[0]+'_'+oname[1] #To eliminate the annoying suffix coming from the '/' notation
-#                             result['taacsID#'     + oname] = sigv_temp 
-#                             result['err_taacsID#' + oname] = 0 
-#                             if oname.split('_')[1] in ['uux','ddx','ssx']:
-#                                 result['lim_taacsID#'+oname] = self.limits.ID_max(mdm, 'qqx')
-#                             elif oname.split('_')[1] in self.limits._allowed_final_states:
-#                                 result['lim_taacsID#'+oname] = self.limits.ID_max(mdm, oname.split('_')[1]) 
-#                             elif oname.split('_')[1] not in self.limits._allowed_final_states:
-#                                 result['lim_taacsID#'+oname] = -1
-#                             sigv_indirect += sigv_temp
-#                     result[splitline[0].split(':')[0]] = float(splitline[1])
-
-                    
-#         result['taacsID'] = sigv_indirect
-                            
-#         np_names = ['g','nue','numu','nutau']
-
-#         if str(self.mode['indirect']).startswith('flux'):
-#             for chan in np_names:
-#                 result['flux_%s' % chan] = -1.0
-
-#         # Calculating the xsi factor. Set == 1 if relic is not evaluated
-#         if self.mode['relic']:
-#            if result['Omegah^2'] < 0:
-#                result['xsi'] = 1.0   
-#            elif result['Omegah^2'] < self.limits._oh2_planck and result['Omegah^2'] > 0:
-#                result['xsi'] = result['Omegah^2'] / self.limits._oh2_planck
-#            else: result['xsi'] = 1.0
-
-#         else: result['xsi'] = 1.0
-
-#         if self.mode['direct']:
-#             result['lim_sigmaN_SI_n'] = self.limits.SI_max(mdm)
-#             result['lim_sigmaN_SI_p'] = self.limits.SI_max(mdm)
-#             result['lim_sigmaN_SD_p'] = self.limits.SD_max(mdm, 'p')
-#             result['lim_sigmaN_SD_n'] = self.limits.SD_max(mdm, 'n')
-
-#         self.last_results = result
-#         self.last_results['run'] = self.run_name
-
-                          
-# #        if self.mode['indirect'] and not self._two2twoLO:
-# #            with misc.MuteLogger(names=['madevent','madgraph'],levels=[50,50]):
-# #                self.launch_indirect(force)
-
-#         if self.mode['indirect']:
-#             self.launch_indirect(force)
-        
-#         if not self.in_scan_mode and not self.multinest_running:
-#             self.print_results()
-
-#         # Saving the output for single point
-#         if not self.param_card_iterator:
-#             self.save_remove_output(scan = False)
-
-#         # --------------------------------------------------------------------#
-#         #   THIS PART IS FOR MULTINEST SCANS
-#         # --------------------------------------------------------------------#
-
-#         #multinest can be launched only after one launch has been executed
-#         if self.mode['nestscan'] and not self.multinest_running:
-#             self.multinest_running = True
-#             self.launch_multinest()
-#             self.multinest_running = False
-
-
-#         # --------------------------------------------------------------------#
-#         #   THIS PART IS FOR SEQUENTIAL SCANS
-#         # --------------------------------------------------------------------#
-        
-#         if self.param_card_iterator:
-            
-#             param_card_iterator = self.param_card_iterator
-
-#             parameters, values =  param_card_iterator.param_order , param_card_iterator.itertag
-#             self.param_card_iterator = []
-
-#             self.save_remove_output(scan = True) ## this is to remove or save spectra, not the scan summary file!
-
-#             # *** Initialize a list containing the desired variables in the summary output of the scan
-#             order = ['run']
-
-#             # *** saving the name of the iterated parameters, and the values in the results dictionary
-#             for par,val in zip(parameters, values):
-#                 order.append(par)
-#                 self.last_results[par] = val
-
-#             # *** Relic density
-#             if self.mode['relic']:
-#                 order += ['Omegah^2','x_f', 'sigmav(xf)']
-#             order.append('xsi')
-
-#             # *** Direct Detection
-#             if self.mode['direct'] :
-#                 order += ['sigmaN_SI_p', 'lim_sigmaN_SI_p', 
-#                           'sigmaN_SI_n', 'lim_sigmaN_SI_n',
-#                           'sigmaN_SD_p', 'lim_sigmaN_SD_p',
-#                           'sigmaN_SD_n', 'lim_sigmaN_SD_n']
-
-           
-#             if self.mode['direct'] == 'directional':
-#                 order += ['Nevents', 'smearing']
-
-#             if self.mode['capture']:
-#                 detailled_keys = [k for k in self.last_results if k.startswith('ccap_') and '#' not in k]
-#                 for key in detailled_keys:
-#                     order += [key]
- 
-#             # *** Indirect detection
-#             if self.mode['indirect']:
-#                 halo_vel = self.maddm_card['vave_indirect']
-#                 if halo_vel > (3*10**(-6)) and halo_vel < ( 1.4*10**(-4) ):  # cannot calculate Fermi limits
-                 
-#                 #if not self._two2twoLO:
-#                     detailled_keys = [k for k in self.last_results if k.startswith('taacsID#') ]
-#                     if len(detailled_keys)>1:
-#                         for key in detailled_keys:
-#                             clean_key_list = key.split("_")
-#                             clean_key = clean_key_list[0]+"_"+clean_key_list[1]
-
-#                             order +=[clean_key]
-#                             order +=['lim_'+clean_key]
-
-#                     order.append('taacsID')
-#                     order.append('tot_SM_xsec')
-#                     order.append('Fermi_sigmav')
-
-#                     if self.last_results['xsi'] >0 and self.last_results['xsi'] <1: # thermal and non thermal case 
-#                        order = order + ['pvalue_th','like_th','pvalue_nonth','like_nonth']
-#                     else:
-#                        order = order + ['pvalue_nonth','like_nonth']
-
-#                     if self.mode['indirect'].startswith('flux'):
-#                        #for channel in self.Spectra.spectra.keys(): #['neutrinos_e', 'neutrinos_mu' , 'neutrinos_tau']
-#                        for channel in ['gammas','neutrinos_e', 'neutrinos_mu' , 'neutrinos_tau']:
-#                            if 'antip' in channel or 'pos' in channel: continue
-#                            order.append('flux_%s' % channel)
-
-#             for elem in order:
-#                 if elem not in self.last_results.keys():
-#                     order.remove(elem)
-
-#             run_name = str(self.run_name).rsplit('_',1)[0]
-#             summary_file = pjoin(self.dir_path, 'output','scan_%s.txt' % run_name)
-#             self.write_scan_output(out_path = summary_file , keys = order, header = True )
-#             self.write_scan_output(out_path = summary_file , keys = order )
-#             with misc.TMP_variable(self, 'in_scan_mode', True):
-#                 with misc.MuteLogger(names=['cmdprint','madevent','madgraph','madgraph.plugin'],levels=[50,50,50,20]):
-                                        
-#                     for i,card in enumerate(param_card_iterator):
-#                         card.write(pjoin(self.dir_path,'Cards','param_card.dat'))
-#                         self.exec_cmd("launch -f -n %s_%02d" % (run_name, i+2),
-#                                        precmd=True, postcmd=True, errorhandling=False)
-#                         for par,val in zip(param_card_iterator.param_order, param_card_iterator.itertag):
-#                             self.last_results[par] = val
-#                         self.write_scan_output(out_path = summary_file , keys = order, header = False)
-
-#                         ### the following three lines are added by chiara to check the widht = auto function 
-#                         # self._param_card = param_card_mod.ParamCard('/Users/arina/Documents/physics/software/maddm_dev2/test_width/Cards/param_card.dat')
-#                         # width = self.param_card.get_value('width', 5000000)
-#                         # logger.warning('--> try again WY0: %.2e' % width)
-#                         #<=-------------- Mihailo commented out max_col = 10
-#                         #logger.info('Results for the point \n' + param_card_iterator.write_summary(None, order, lastline=True,nbcol=10)[:-1])#, max_col=10)[:-1])
-#                         self.save_remove_output(scan = True)
-
-
-
-#             param_card_iterator.write(pjoin(self.dir_path,'Cards','param_card.dat'))
-
     def ask_run_configuration(self, mode=None, force=False):
         """ask the question about card edition """
         
-        # if not hasattr(self, 'mode') or not force:
-            # self.mode, cmd_quest = self.ask('', '0', mode=mode, 
-            #             ask_class=MadDumpSelector, timeout=60, path_msg=' ',
-            #             return_instance=True, force=force)
-        # out = self.ask('', '0', mode=mode, 
-        #                ask_class=MadDumpSelector, timeout=60, path_msg=' ',
-        #                return_instance=True, force=force)
+        if self.DMmode == 'production_interaction': 
+            cards = ['param_card.dat','fit2D_card.dat','run_card.dat']
+        elif self.DMmode in ['decay_interaction','interaction_only']:
+            cards = ['param_card.dat','fit2D_card.dat','madspin_card.dat']
 
-        cards = ['param_card.dat','fit2D_card.dat','run_card.dat']
         self.ask_edit_cards(cards,plot=False)
 
         self.auto_width = set() #ensure to reset auto_width! at the 
@@ -492,19 +341,9 @@ class MADDUMPRunCmd(cmd.CmdShell):
         
     def ask_edit_cards(self, cards, mode='fixed', plot=True, first_cmd=None):
         """ """
-        # if not self.options['madanalysis_path']:
-        #     plot = False
-
         self.ask_edit_card_static(cards, mode, False, 60,
                                   self.ask, first_cmd=first_cmd)
         
-        # for c in cards:
-        #     if not os.path.isabs(c):
-        #         c = pjoin(self.me_dir, c) 
-        #     if not os.path.exists(c):
-        #         default = c.replace('dat', '_default.dat')
-        #         if os.path.exists(default):
-        #             files.cp(default, c)
 
     @staticmethod
     def ask_edit_card_static(cards, mode='fixed', plot=True,
@@ -572,71 +411,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
                               path_msg='enter path', ask_class = MadDumpSelector,
                               cards=cards, mode=mode, **opt)
 
-        
-            # # automatically switch to keep_wgt option
-            # #edit the maddm_card to be consistent with self.mode
-            # cmd_quest.get_cardcmd()
-            # # write Cards/.lastmode to recover 
-            # cmd_quest.write_switch()
-    
-            # self.maddump_card = cmd_quest.maddump
-            # for key, value in self.mode.items():
-            #     if value == 'ON' or value is True:
-            #         self.mode[key] = True
-    
-            #     elif value == 'OFF':
-            #         self.mode[key] = False
-            # self.mode['capture'] = False
-
-            # # create the inc file for maddm
-            # logger.debug('2to2 in ask_run_configuration: %s' % self._two2twoLO)
-
-        
-        # #set fortran switch and write include file
-        # if not self.in_scan_mode:
-        #     # create the inc file for maddm
-        #     self.maddm_card.set('do_relic_density', self.mode['relic'], user=False)
-        #     self.maddm_card.set('do_direct_detection', True if self.mode['direct'] else False, user=False)
-        #     self.maddm_card.set('do_directional_detection', self.mode['direct'] == 'directional', user=False)
-        #     self.maddm_card.set('do_capture', self.mode['capture'], user=False)
-        #     self.maddm_card.set('do_indirect_detection', True if self.mode['indirect'] else False, user=False)
-        #     self.maddm_card.set('do_flux', True if (self.mode['indirect'] and self.mode['indirect'] != 'sigmav') else False, user=False)
-        #     self.maddm_card.set('only2to2lo', self._two2twoLO, user=False)
-        #     #self.maddm_card.set('run_multinest', self.mode['run_multinest'], user=False)
-
-        # if not self.in_scan_mode and not self.mode['nestscan']:
-        #     logger.info("Start computing %s" % ','.join([name for name, value in self.mode.items() if value]))
-        # return self.mode
-
-
-    # def compile(self):
-    #     """compile the code"""
-
-    #     #logger.info(self.mode)
-
-    #     if self.in_scan_mode:
-    #         return
-
-    #     #self.maddump_card.write_include_file(pjoin(self.dir_path,'include'))
-    #     misc.compile(['all'],cwd=self.dir_path)
-
-    #     # if self.mode['relic'] and self.mode['direct']:
-    #     #     misc.compile(['all'],cwd=self.dir_path)
-    #     # elif self.mode['relic'] and not self.mode['direct']:
-    #     #     misc.compile(['relic_density'],cwd=self.dir_path)
-    #     # elif self.mode['direct'] and not self.mode['relic']:
-    #     #     misc.compile(['direct_detection'],cwd=self.dir_path)
-    #     # elif self.mode['indirect'] and not self.mode['relic']:
-    #     #     misc.compile(['relic_density'],cwd=self.dir_path)
-    #     # else:
-    #     #     raise Exception, "No computation requested. End the computation"
-    
-    #     # if os.path.exists(pjoin(self.dir_path, 'src', 'maddm.x')) or os.path.exists(pjoin(self.dir_path, 'maddm.x')):
-    #     #     logger.info("compilation done")
-    #     # else:
-    #     #     raise Exception, 'Compilation of maddm failed'
-
-        
+                
     ############################################################################
     def do_open(self, line):
         """Open a text file/ eps file / html file"""
@@ -692,19 +467,10 @@ class MADDUMPRunCmd(cmd.CmdShell):
 class MadDumpSelector(common_run.AskforEditCard):
     """ """
 
-    to_init_card = ['param', 'run', 'fit2D']
+    to_init_card = ['param', 'run', 'fit2D', 'madspin']
 
     def __init__(self, question, *args, **opts):
-
-        self.me_dir = opts['mother_interface'].dir_path
-        #self.availmode = opts.pop('data', collections.defaultdict(bool))
-        
-        # param_card_path = pjoin(opts['mother_interface'].dir_path, 'Cards', 'param_card.dat')
-        # fit2D_card_path = pjoin(opts['mother_interface'].dir_path, 'Cards', 'fit2D_card.dat')
-        # pythia8_card_path = pjoin(opts['mother_interface'].dir_path, 'Cards', 'pythia8_card.dat')
-        
-        # cards = [param_card_path, fit2D_card_path]
-
+        self.me_dir = opts['mother_interface'].dir_path        
         common_run.AskforEditCard.__init__(self, question,
                                             *args, **opts)
         
@@ -757,91 +523,8 @@ class MadDumpSelector(common_run.AskforEditCard):
         super(MadDumpSelector, self).define_paths(**opt)
         self.paths['fit2D'] = pjoin(self.me_dir,'Cards','fit2D_card.dat')
         self.paths['fit2D_default'] = pjoin(self.me_dir,'Cards','fit2D_card_default.dat')
+        self.paths['madspin'] = pjoin(self.me_dir,'Cards','madspin_card.dat')
         
-#     # TODO HERE!
-#     def default(self, line):
-#         """Default action if line is not recognized"""
-        
-#         try:
-#             return cmd.ControlSwitch.default(self, line, raise_error=True)
-#         except cmd.NotValidInput:
-#             return common_run.AskforEditCard.default(self, line)     
-        
-            
-#     def do_help(self, line, conflict_raise=False, banner=True):
-#         """proxy for do_help"""
-             
-#         if line:
-#             if banner:                      
-#                 logger.info('*** HELP MESSAGE ***', '$MG:BOLD')
-#             card = common_run.AskforEditCard.do_help(self, line, conflict_raise=conflict_raise, banner=False)
-#         else:
-#             if banner:
-#                 logger.info('*** HELP MESSAGE FOR CARD EDITION ***', '$MG:BOLD')
-#             card = common_run.AskforEditCard.do_help(self, line, conflict_raise=conflict_raise, banner=False)
-#             logger.info('*** HELP MESSAGE FOR CHANGING SWITCH ***', '$MG:BOLD')
-#             card = cmd.ControlSwitch.do_help(self, line, list_command=False)
-#             if banner:                      
-#                 logger.info('*** END HELP ***', '$MG:BOLD')
-            
-#             logger_tuto.info("""
-# This question allows you BOTH to define what you are going to run (via the value at the top).
-# But also to edit the content of the various file defining the  run/benchmark (bottom).
-
-# To bypass the computation of relic density you can do
-# > relic=OFF            
-# to make the compuatation of the  directional detection
-# > direct=directional
-                
-# You can also edit the card referenced.
-# Note that you can 
-#    1) edit any parameter like this:
-#        > set mxd 10
-#        [use auto completion if you need to search a name]
-#    2) run a scan over parameter space
-#         > set mxd scan:[10, 20, 40]
-#         > set mxd scan:[10**i for i in range(5)]
-#    3) ask to compute the width automatically for a particle
-#         > set my0 Auto  
-        
-# When you are done with such edition, just press enter (or write 'done' or '0')          
-# """) 
-
-#             return
-            
-#         args = self.split_arg(line)
-        
-#         if not args:
-#             args =['']
-        
-#         start = 0
-        
-#         if args[start] in ['maddm', 'maddm_card']:
-#             card = 'maddm'
-#             start += 1
-            
-#         #### MADDM CARD 
-#         if args[start] in [l.lower() for l in self.maddm.keys()] and card in ['', 'maddm']:
-#             if args[start] not in self.maddm_set:
-#                 args[start] = [l for l in self.maddm_set if l.lower() == args[start]][0]
-
-#             if args[start] in self.conflict and not conflict_raise:
-#                 conflict_raise = True
-#                 logger.info('**   AMBIGUOUS NAME: %s **', args[start], '$MG:BOLD')
-#                 if card == '':
-#                     logger.info('**   If not explicitely speficy this parameter  will modif the maddm_card file', '$MG:BOLD')
-
-#             self.maddm.do_help(args[start])
-            
-#         ### CHECK if a help_xxx exist (only for those wihtout a do_xxx)
-#         if len(args) == 1:
-#             if not hasattr(self, 'do_%s' % args[0]) and hasattr(self, 'help_%s' % args[0]):
-#                 getattr(self, 'help_%s' %args[0])()
-            
-#         if banner:                      
-#             logger.info('*** END HELP ***', '$MG:BOLD')  
-#         return card    
-    
       
     def do_update(self, line, timer=0):
         """syntax: update dependent: Change the mass/width of particles which are not free parameter for the model.
@@ -858,13 +541,6 @@ class MadDumpSelector(common_run.AskforEditCard):
             else:
                 return super(MadDumpSelector, self).do_update(line)
          
-    # def update_to_full(self, line):
-    #     """ trigger via update to_full LINE"""
-        
-    #     logger.info("update the maddm_card by including all the hidden parameter")
-    #     self.maddm.full_template = True
-    #     self.maddm.write(self.paths['maddm'], write_hidden=True)
-
     
     def check_card_consistency(self):
         super(MadDumpSelector, self).check_card_consistency()
@@ -953,6 +629,3 @@ class MadDumpSelector(common_run.AskforEditCard):
     def setfit2D(self, name, value, loglevel=20):
         logger.log(loglevel,'modify parameter %s of the fit2D_card.dat to %s' % (name, value), '$MG:BOLD')
         self.maddump.set(name, value, user=True)
-
-
-        

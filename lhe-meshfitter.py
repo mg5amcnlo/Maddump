@@ -50,12 +50,13 @@ def get_proc_characteristics(path):
         else:
             args = line.split()
             proc_characteristics[args[0]] = args[2]
-        return proc_characteristics
+    return proc_characteristics
 
 
 proc_characteristics = get_proc_characteristics('../SubProcesses/proc_characteristics')
 
-DM = int(proc_characteristic['DM'])
+print(proc_characteristics)
+DM = int(proc_characteristics['DM'])
 DM_pdgcode = [DM,-DM]
 events_lhefile = 'unweighted_events.lhe.gz'
 detector_particle = 'proton' 
@@ -156,7 +157,7 @@ E_max = 0.
 theta_min = np.pi/2.
 theta_max = 0.
 
-xsec =lhe.cross
+xsec =1.#lhe.cross
 nevt=len(lhe)
 npass = 0
 for event in lhe:

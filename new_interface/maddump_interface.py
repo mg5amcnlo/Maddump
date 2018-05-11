@@ -52,6 +52,7 @@ class MadDump_interface(master_interface.MasterCmd):
 
 
     _define_options = ['darkmatter']
+    _importevts_options = ['decay','interaction']
     
     # process number to distinguish the different type of matrix element
     process_tag = {'prod': 100,
@@ -69,6 +70,9 @@ class MadDump_interface(master_interface.MasterCmd):
         self._dm_candidate = []
         self._param_card = None
         self._out_dir = ''
+        self._evts_inputfile_todecay = [] 
+        self._evts_inputfile_tointeract = [] 
+        self._decay_list = []
         
 ################################################################################        
 # DEFINE COMMAND
@@ -128,8 +132,73 @@ class MadDump_interface(master_interface.MasterCmd):
     #         self._coannihilation = []
             
     #     return super(MadDumpM_interface, self).do_import(line, *args, **opts)
-      
 
+    
+    def do_import_events(self, line):
+        args = self.split_arg(line)
+        # if '.lhe' or '.hepmc' not in args:
+        #     raise DMError, 'Events file name must contain .lhe or .hepmc extension!'
+        if 'decay' in args:
+            args.pop(0)
+            if not os.path.isfile(args[0]):
+                raise DMError, 'Invalid path: the file does not exist!'                
+            if not any( [ext in args[0] for ext in ['hepmc','lhe']]):
+                raise DMError, 'Invalid events file name: it must contain the hepmc or lhe extension!'
+            if not self._evts_inputfile_todecay:
+                self._evts_inputfile_todecay.append(args[0])
+            else:
+                while(1):
+                    answ = raw_input ('Events file to decay already loaded. Do you want to overwrite it? [y/n] ')
+                    if answ == 'y':
+                        self._evts_inputfile_todecay[0] = args[0]
+                        break 
+                    elif answ == 'n':
+                        break
+                    else:
+                        print("Please, answer with 'y' or 'n'.")                        
+        if 'interaction' in args:
+            args.pop(0)
+            if not os.path.isfile(args[0]):
+                raise DMError, 'Invalid path: the file does not exist!'                
+            if not any( [ext in args[0] for ext in ['hepmc','lhe']]):
+                raise DMError, 'Invalid events file name: it must contain the hepmc or lhe extension!'
+            if not self._evts_inputfile_tointeract:
+                self._evts_inputfile_tointeract.append(args[0])
+            else:
+                while(1):
+                    answ = raw_input ('Events file to decay already loaded. Do you want to overwrite it? [y/n] ')
+                    if answ == 'y':
+                        self._evts_inputfile_tointeract[0] = args[0]
+                        break 
+                    elif answ == 'n':
+                        break
+                    else:
+                        print("Please, answer with 'y' or 'n'.")
+
+                        
+    def complete_import_events(self, text, line, begidx, endidx, formatting=True):
+        "Complete the import_events command"
+        
+        out = {}
+        args = self.split_arg(line[0:begidx])
+
+        if len(args) == 1:
+            out['maddump options'] = self.list_completion(text, self._importevts_options, line)
+            return self.deal_multiple_categories(out, formatting)        
+        if len(args) == 2:
+            base_dir = '.'
+        else:
+            base_dir = args[2]
+        
+        return self.path_completion(text, base_dir)
+        
+        # Directory continuation
+        if os.path.sep in args[-1] + text:
+            return self.path_completion(text,
+                                    pjoin(*[a for a in args if \
+                                                      a.endswith(os.path.sep)]))
+
+        
     def do_add(self, line):
         """ """
         
@@ -142,7 +211,7 @@ class MadDump_interface(master_interface.MasterCmd):
         if len(args) and args[0] == 'process':
             args.pop(0)
 
-        if len(args) and args[0] in['production']:
+        if len(args) and args[0] == 'production':
             args.pop(0)
             line = 'process'
             for x in args:
@@ -160,13 +229,16 @@ class MadDump_interface(master_interface.MasterCmd):
         #  channels. The matrix elements are the same as in madevent
         #  while the output format must be supplied by the maddump
         #  plugin.  
-        elif len(args) and args[0] in ['interaction']:
+        elif len(args) and args[0] == 'interaction':
             args.pop(0)            
             if not '@' in line:
                 raise DMError, 'The user must supply a valid interaction channel!'
             tag = re.search('(?<=@)\w+', line)
             print(tag.group(0))
-            dm_candidate = self._dm_candidate[-1]['name']
+            try:
+                dm_candidate = self._dm_candidate[-1]['name']
+            except:
+                raise DMError, 'Please define a valid dark matter candidate!'
             int_proc = {'DIS' : 'process ' +  dm_candidate + ' p > ' + dm_candidate + ' p @DIS',
                         'electron' : 'process ' + dm_candidate + ' e- > ' + dm_candidate + ' e- @electron',
                         'ENS' : 'work in progress'}
@@ -201,6 +273,19 @@ class MadDump_interface(master_interface.MasterCmd):
         
         return super(MadDump_interface, self).complete_add(text, line, begidx, endidx,formatting=False)
 
+
+    def do_decay(self, line):
+        self._decay_list.append(line)
+        
+    def complete_decay(self, text, line, begidx, endidx, formatting=True):
+        """Complete particle information"""
+
+        args = self.split_arg(line[:begidx])
+        out = super(MadDump_interface, self).complete_generate(text, line, begidx, endidx,formatting=False)
+        if not isinstance(out, dict):
+            out = {"standard options": out}
+        return self.deal_multiple_categories(out, formatting)
+        
     
     def do_output(self, line):
         """ """
@@ -243,6 +328,18 @@ class MadDump_interface(master_interface.MasterCmd):
         os.makedirs(cards_dir)
         cards = ['param_card.dat','param_card_default.dat',
                  'fit2D_card.dat','fit2D_card_default.dat']
+
+        if self._evts_inputfile_todecay:
+            evts_todecay_dir = pjoin(self._out_dir, 'Events_to_decay')
+            os.makedirs(evts_todecay_dir)
+            ln(self._evts_inputfile_todecay[0], evts_todecay_dir,)
+            self.write_madspin_card(cards_dir,evts_todecay_dir)
+
+        if self._evts_inputfile_tointeract:
+            evts_tointeract_dir = pjoin(self._out_dir, 'Events_to_interact')
+            os.makedirs(evts_tointeract_dir)
+            ln(self._evts_inputfile_tointeract[0], evts_tointeract_dir,)
+
         
         for proc in self._curr_proc_defs:
             
@@ -321,7 +418,7 @@ class MadDump_interface(master_interface.MasterCmd):
         #with misc.TMP_variable(self, '_export_formats', self._export_formats + ['maddm']):
         #self.check_launch(args, options)
         options = options.__dict__
-
+        
         if not args:
             self._MDUMP = maddump_run_interface.MADDUMPRunCmd(dir_path = self._out_dir, options = self.options)
         else:
@@ -348,7 +445,30 @@ class MadDump_interface(master_interface.MasterCmd):
         #         self._done_export = (args[1], 'plugin')
         #         return
 
-            
+
+    def write_madspin_card(self,cpath,epath):
+        """ """
+        #args = self._evts_inputfile_todecay[0].split('/')
+        #evts_file = pjoin(epath,args[-1])
+
+        evts_file = pjoin(epath,os.path.basename(self._evts_inputfile_todecay[0]))
+        
+        out = open(pjoin(cpath,'madspin_card.dat'),'w')
+        s = 'set spinmode none\nset cross_section {0:1.0}\nset new_wgt BR\n'
+        out.write(s)
+        if 'lhe' in evts_file:
+            out.write('set input_format lhe_no_banner\n')
+        elif 'hepmc' in evts_file:
+            out.write('set input_format hepmc\n')
+
+        s = 'import ' + evts_file + '\n' 
+        s += 'import model ' + self._curr_model.get("modelpath") + ' ' + pjoin(cpath,'param_card.dat') + '\n'   
+        out.write(s)
+        for decay in self._decay_list:
+            out.write('decay '+ decay + '\n')
+        out.write('launch\n')
+                
+        
     def define_multiparticles(self, label, list_of_particles):
         """define a new multiparticle from a particle list (add both particle and anti-particle)"""
         
