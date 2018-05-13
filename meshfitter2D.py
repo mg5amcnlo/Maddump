@@ -10,13 +10,13 @@ import fit2D_card as fit2D
 import madgraph.various.banner as banner_mod
 import madgraph.various.lhe_parser as lhe_parser
 
-def plot (file,nrun=-1):
+def plot (infile,outfile=None):
     """ Plot the canvas with the 2D mesh."""
     import matplotlib.pyplot as plt
     from matplotlib.collections import PatchCollection
     from matplotlib.patches import Rectangle
 
-    x,y,width,height = np.loadtxt(file, unpack = True)
+    x,y,width,height = np.loadtxt(infile, unpack = True)
     
     fig, ax = plt.subplots()
 
@@ -47,11 +47,10 @@ def plot (file,nrun=-1):
     plt.xlim((min_x,a))
     plt.ylim((min_y,b))
 
-    if nrun<0:
+    if not outfile:
         plt.show()
     else:
-        s='plot_'+str(nrun)+'.png'
-        plt.savefig(s)
+        plt.savefig(outfile)
 
 #===============================================================================
 # Basic Geometrical Point in 2-dimensions
@@ -629,7 +628,7 @@ class CellHistogram(object):
         cells = [canvas]
 
         npts=self.npts
-        weight_exit = self.weight/50
+        weight_exit = self.weight/25
 
         split = [self.equalweight_split_vertically]
 
@@ -842,12 +841,9 @@ class fit2D_energy_theta(CellHistogram):
         #store and reweight evts
         self.npass,self.E_min,self.E_max,self.theta_min,self.theta_max,self.data = \
                     self.store_reweight(input_lhe_evts)
-
         
-        for pt in self.data:
-            print(pt.weight)
         super(fit2D_energy_theta,self).__init__(Point(self.E_min,self.theta_min), \
-                                    self.E_max-self.E_min,self.theta_max-self.theta_min,50)
+                                                self.E_max-self.E_min,self.theta_max-self.theta_min,25)
 
         self.add_pts(self.data)
 
@@ -935,7 +931,12 @@ class fit2D_energy_theta(CellHistogram):
         theta_max = 0.
         npass = 0
         data = []
-        lhe_evts = lhe_parser.EventFile(input_lhe_evts)
+        lhe_evts = lhe_parser.EventFile(input_lhe_evts) 
+        self.testplot = self.fit2D_card['testplot']
+        if self.testplot:
+            scatterdata = open('in_DM.dat','w')
+            scatterdata.write('# E \t theta \t cos(phi) \t sin(phi) \n')
+        # flux normalization 
         norm = self.fit2D_card['flux_norm']
         prod_xsec_flag = self.fit2D_card['prod_xsec_in_norm']
         if prod_xsec_flag:
@@ -943,7 +944,7 @@ class fit2D_energy_theta(CellHistogram):
         target_density = self.fit2D_card['target_density']
         depth = self.fit2D_card['depth']
         fac_cm2_pb = 10**36
-        norm = norm*target_density*depth/fac_cm2_pb
+        norm = norm*(target_density*6.022e23)*depth/fac_cm2_pb
         nevt = len(lhe_evts)
         for event in lhe_evts:
             for particle in event:
@@ -960,6 +961,10 @@ class fit2D_energy_theta(CellHistogram):
                             theta = np.arccos(ctheta)
                             data.append(WeightedPoint(p.E,theta, \
                                                       norm/nevt*weight))
+                            if self.testplot:
+                                s = str(p.E) + '\t' + str(theta) + '\t' + str(cphi) + \
+                                    '\t' + str(sphi) + '\n'  
+                                scatterdata.write(s)
                             if p.E < E_min:
                                 E_min = p.E
                             if p.E > E_max:
@@ -976,7 +981,8 @@ class fit2D_energy_theta(CellHistogram):
         ncores = self.fit2D_card['ncores']
         # Generate the 2DMesh, output file: cell_fortran.dat
         self.fit(ncores=ncores)
-        #plot('cell_fortran.dat')
+        if self.testplot:
+            plot('cell_fortran.dat','mesh2D.png')
         # 3 step: Generate 1D distribution (integrated in angles)
         # and of the output ehist.dat
         self.fit('1D_x',ncores=ncores)

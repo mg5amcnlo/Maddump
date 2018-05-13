@@ -9,6 +9,7 @@ import models.check_param_card as param_card_mod
 import subprocess
 import logging
 #import MadSpin.decay as decay
+import madgraph.iolibs.save_load_object as save_load_object
 import MadSpin.interface_madspin as interface_madspin
 import lhe_to_pythia_hadron_std as lheToPythia
 
@@ -77,7 +78,8 @@ class MADDUMPRunCmd(cmd.CmdShell):
         self.dir_path = dir_path
         self.me_dir = dir_path
         self.param_card_iterator = [] #a placeholder containing a generator of paramcard for scanning
-        
+        #self.store_results = {}
+        self.results = {}
         #A shared param card object to the interface.
         #All parts of the code should read this card.
         #Set at the beginning of launch()
@@ -211,18 +213,17 @@ class MADDUMPRunCmd(cmd.CmdShell):
         self.ask_run_configuration(mode=[], force=force)
         self.run_launch()
         
-    @common_run.scanparamcardhandling(iteratorclass=paramCardIterator)
+    @common_run.scanparamcardhandling(result_path=lambda obj:  pjoin(obj.me_dir, 'scan_%s.txt'))
     def run_launch(self):
-        try:
-            os.makedirs(pjoin(self.dir_path, 'Events'))
-        except:
-            pass
         
         if self.DMmode == 'production_interaction':
             misc.call(['./bin/generate_events', self.run_name, '-f'],
                       cwd=pjoin(self.dir_path, 'production'))
             evts_path = pjoin(self.dir_path, 'production', 'Events', self.run_name, 'unweighted_events.lhe.gz') 
-
+            results = self.load_results_db(pjoin(self.dir_path,'production'),self.run_name)
+            label = 'xsec_prod (pb)'
+            self.results[label] = results['cross']
+           
         elif self.DMmode == 'decay_interaction':            
             decay_dir = pjoin(self.dir_path,'Events_to_decay')
             listdir = subprocess.check_output("ls %s"%decay_dir,shell=True).split()
@@ -277,6 +278,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
 
             #         return
             evts_path = pjoin(evt_dir,'unweighted_events.lhe.gz')
+            
         elif self.DMmode == 'interaction_only':
             interactionevts_dir = pjoin(self.dir_path,'Events_to_interact')
             listdir = subprocess.check_output("ls %s"%interactionevts_dir,shell=True).split()
@@ -284,7 +286,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
                 if any( [ext in file for ext in ['hepmc','lhe']]):
                     evts_file = file            
             evts_path = pjoin(interactionevts_dir,evts_file)
-
+            
         for dir in self.interaction_dir:
             cpath = pjoin(self.dir_path, dir, 'Cards')
 
@@ -308,22 +310,52 @@ class MADDUMPRunCmd(cmd.CmdShell):
             with misc.chdir(cpath):
                 hist2D_energy_angle = meshfitter.fit2D_energy_theta(self.proc_characteristics, \
                                                 'unweighted_events.lhe.gz',interaction_channel)
+                if hist2D_energy_angle.npass < 1000:
+                    raise Exception, "Error: numbers of events entering the detector too small!"
                 hist2D_energy_angle.do_fit()
-            
+
             misc.call(['./bin/generate_events', self.run_name, '-f'],
-                  cwd=pjoin(self.dir_path, dir))
-
-            run_dir = pjoin(self.dir_path, dir,'Events',self.run_name)
-            pythialhe = lheToPythia.LHEtoPYTHIAHadronSTD(pjoin(run_dir,'unweighted_events.lhe.gz'))
-            pythialhe.write_PYTHIA_input(pjoin(run_dir,'pythiainput.lhe'))
-
+                      cwd=pjoin(self.dir_path, dir))
+            #misc.call(['./bin/generate_events', self.run_name],
             
+            run_dir = pjoin(self.dir_path, dir,'Events',self.run_name)
+
+            # store info in the corresponding run_dir 
+            try:
+                output_tp = ['ehist.dat','cell_fortran.dat','in_DM.dat','mesh2D.png']
+                for file in output_tp:
+                    files.mv(pjoin(self.dir_path,dir,'Cards',file), pjoin(run_dir,file))
+            except:
+                pass
+
+            # store results
+            results = self.load_results_db(pjoin(self.dir_path,dir),self.run_name)
+            label = 'nevts_' + interaction_channel
+            self.results[label] = results['cross']
+            
+            # for DIS, generate the LHE events to be showered by Pythia
+            if interaction_channel == 'DIS': 
+                pythialhe = lheToPythia.LHEtoPYTHIAHadronSTD(pjoin(run_dir,'unweighted_events.lhe.gz'))
+                pythialhe.write_PYTHIA_input(pjoin(run_dir,'pythiainput_DIS.lhe'))
+
+
+    def load_results_db(self,path,run_name):
+        """load the current results status"""
+        print(path)
+        # load the current status of the directory
+        if os.path.exists(pjoin(path,'HTML','results.pkl')):
+            try:
+                results = save_load_object.load_from_file(pjoin(path,'HTML','results.pkl'))
+                return results[run_name][0]
+            except:
+                raise Exception, "Error: no results!"
+        
     def store_scan_result(self):
-        return {}
+        return self.results#{'cross (pb)': 1e-5} #self.store_results
 
     def set_run_name(self, name):
         self.run_name = name
-                        
+    
     def ask_run_configuration(self, mode=None, force=False):
         """ask the question about card edition """
         

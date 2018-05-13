@@ -225,7 +225,7 @@ class MadDump_interface(master_interface.MasterCmd):
         #  handle the interaction of the DM candidate in the
         #  a) DIS 
         #  b) elastic electron scattering 
-        #  c) elastic nucleon scattering (WIP)
+        #  c) elastic nucleon scattering (not yet implemented)
         #  channels. The matrix elements are the same as in madevent
         #  while the output format must be supplied by the maddump
         #  plugin.  
@@ -234,13 +234,18 @@ class MadDump_interface(master_interface.MasterCmd):
             if not '@' in line:
                 raise DMError, 'The user must supply a valid interaction channel!'
             tag = re.search('(?<=@)\w+', line)
-            print(tag.group(0))
+            #print(tag.group(0))
+            excl = re.search('(?<=/)\w+', line)
+            if excl:
+                excluded = '/'+excl.group(0)
+            else:
+                excluded = ''
             try:
                 dm_candidate = self._dm_candidate[-1]['name']
             except:
                 raise DMError, 'Please define a valid dark matter candidate!'
-            int_proc = {'DIS' : 'process ' +  dm_candidate + ' p > ' + dm_candidate + ' p @DIS',
-                        'electron' : 'process ' + dm_candidate + ' e- > ' + dm_candidate + ' e- @electron',
+            int_proc = {'DIS' : 'process ' +  dm_candidate + ' p > ' + dm_candidate + ' p ' + excluded + ' @DIS',
+                        'electron' : 'process ' + dm_candidate + ' e- > ' + dm_candidate + ' e- ' + excluded + ' @electron',
                         'ENS' : 'work in progress'}
             self.do_add(int_proc[tag.group(0)])
             

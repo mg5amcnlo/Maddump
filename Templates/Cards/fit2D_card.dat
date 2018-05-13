@@ -23,7 +23,7 @@
    %(flux_norm)s         =  flux_norm ! Overall flux normalization 
    %(prod_xsec_in_norm)s =  prod_xsec_in_norm ! whether multiply for the production cross section
    %(d_target_detector)s =  d_target_detector ! Distance between the target and the detector in cm 
-   %(target_density)s    =  target_density ! Number of target particles per unit cube (cm^-3)
+   %(target_density)s    =  target_density ! average target density per unit cube (g/cm^-3)
 #*********************************************************************
 # Cuts on the detector shape 
 #*********************************************************************
@@ -41,3 +41,4 @@
      %(depth)s     =  depth ! both for cylinder and parallepiped
 
      %(ncores)s     =  ncores ! number of cores to be used by the fit routine. It must be a power of two: 2,4,8,...
+     %(testplot)s   =  testplot ! if True, store the table of the original data entering the detector ('in_DM.dat')  and the plot of the 2D fitted mesh ('mesh2D.png') in the corresponding /Events/XXX run directory

@@ -23,7 +23,7 @@ class Fit2DCard(bannermod.RunCard):
     
         #detector parameters
         self.add_param("d_target_detector", 1.)
-        self.add_param("target_density", 1)
+        self.add_param("target_density", 1.)
         
         #cut
         self.add_param("xc", 0., comment= 'x coordinate central point wrt the beam axis')
@@ -41,6 +41,7 @@ class Fit2DCard(bannermod.RunCard):
 
         #technical parameters
         self.add_param("ncores", 4)
+        self.add_param("testplot", False)
         
         
     def check_validity(self):
