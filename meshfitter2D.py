@@ -987,7 +987,9 @@ class fit2D_energy_theta(CellHistogram):
         # and of the output ehist.dat
         self.fit('1D_x',ncores=ncores)
         # Update parameters in the run card
+        nevts = self.fit2D_card['nevts_interaction']
         run_card = banner_mod.RunCard(pjoin('run_card_default.dat'))
+        run_card['nevents'] = nevts
         run_card['lpp2'] = self.lpp2[self.interaction_channel]
         run_card['ebeam1'] = self.E_max
         run_card['ebeam2'] = self.ebeam2[self.interaction_channel]

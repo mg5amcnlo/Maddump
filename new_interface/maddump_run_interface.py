@@ -332,6 +332,12 @@ class MADDUMPRunCmd(cmd.CmdShell):
             results = self.load_results_db(pjoin(self.dir_path,dir),self.run_name)
             label = 'nevts_' + interaction_channel
             self.results[label] = results['cross']
+
+            # apply channel tag to events file name
+            try:
+                files.mv(pjoin(run_dir,'unweighted_events.lhe.gz'), pjoin(run_dir,'unweighted_events'+'_'+interaction_channel+'.lhe.gz'))
+            except:
+                raise Exception, 'Error: events file not generated!'
             
             # for DIS, generate the LHE events to be showered by Pythia
             if interaction_channel == 'DIS': 

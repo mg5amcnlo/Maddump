@@ -16,7 +16,9 @@ class Fit2DCard(bannermod.RunCard):
 
     def default_setup(self):
         """default value for the fit2D_card.dat"""
-        
+
+        self.add_param("nevts_interaction", 10000, comment= 'Number of events to be generated within the interaction process')
+
         #flux normalization
         self.add_param("flux_norm", 1., comment= 'Overall normalization of the incoming flux without applying cuts')
         self.add_param("prod_xsec_in_norm", False, comment= 'If True the weight is multiplied by the production cross section')

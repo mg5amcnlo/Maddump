@@ -20,6 +20,7 @@
 #*********************************************************************
 # Detector parameters
 #*********************************************************************
+   %(nevts_interaction)s =  nevts_interaction ! Number of events to be generated within the interaction process
    %(flux_norm)s         =  flux_norm ! Overall flux normalization 
    %(prod_xsec_in_norm)s =  prod_xsec_in_norm ! whether multiply for the production cross section
    %(d_target_detector)s =  d_target_detector ! Distance between the target and the detector in cm 
