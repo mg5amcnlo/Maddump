@@ -341,7 +341,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
             
             # for DIS, generate the LHE events to be showered by Pythia
             if interaction_channel == 'DIS': 
-                pythialhe = lheToPythia.LHEtoPYTHIAHadronSTD(pjoin(run_dir,'unweighted_events.lhe.gz'))
+                pythialhe = lheToPythia.LHEtoPYTHIAHadronSTD(pjoin(run_dir,'unweighted_events_DIS.lhe.gz'))
                 pythialhe.write_PYTHIA_input(pjoin(run_dir,'pythiainput_DIS.lhe'))
 
 
