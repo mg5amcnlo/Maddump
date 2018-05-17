@@ -1,0 +1,135 @@
+# Typical maddump session
+# autocompletation is available using the 'tab' key
+
+#start maddump from the shell in the madgraph directory.
+./bin/mg5_aMC --mode=maddump
+
+###################################
+#    Generation of the process    #
+###################################
+# importing the BSM model
+import model XXX
+
+# for prompt production
+# [process] is any allowed process in madgraph given the model XXX
+# for example p p > DM DM~
+generate production [process]
+
+# for meson decays
+# 1. import the events to be decayed
+# notice: the input events file must contained the extension hepmc/lhe or
+# hempm.gz/lhe.gz if it is gzipped
+# 2. specify the decay you are interested in
+# for example pi0 > DM DM~ a 
+import_events decay [path]
+decay [process]
+
+# add the DM-detector interaction process
+# allowed DM-detector interaction [channel]are 'DIS' and 'electron'
+# 1. define the darkmatter candidate
+# [DM] particle allowed by the model
+# 2. add the interaction specifying the channel
+# notice: it is possible to add both the channel for the same production
+# mechanism invoking two times the add command
+define darkmatter [DM]
+add process interaction @[DIS]
+
+# output your process
+# structure of output dir, subdirs:
+# 1. Cards: contains the common input cards for the run
+# 2. production: for the prompt production process
+# 3. interactio_[channel]: for the interaction process in channel [channel]
+output [output_dir]
+
+# launch the job (when you restart your maddump session, you can
+# launch a previous generated process just adding the name of the
+# output directory
+
+launch [outpur_dir]
+
+###################################
+# Question for setting parameters #
+###################################
+# After launch command, an interactive session starts in which
+# the user is asked to set the most important parameters of the
+# run. Parameter setting can be done in two ways:
+# 1. opening the corresponding input card inside the default editor (usual vi) 
+# 2. using the command set which generic syntax is 
+     set [param] [value]
+
+# Input cards:
+# a) param_card.dat: it contains the parameters of the current model
+#                    in particular: couplings, masses, widths
+#		     
+# -  the scan function works in association with param_card only
+#    in order to have a one-dimensional scan use
+#    set [param] scan:[range]
+#    where range is whatever python expression which gives a list of values
+#    for example:
+#    set mt scan: [172,172.5,173]
+#    set mt scan: [172+i*0.5 for i in range(4)]
+#    
+# -  the auto-width function works in association with param_card only
+#    it computes (at tree-level) the partial widths and the total width for
+#    a given group of particles
+#    to activate it, just set the corresponding width to auto with the command
+#    set [width_particle] auto
+#    or just editing the param_card.dat
+
+
+# b) fit2D_card.dat: it contains the parameters for the 2D fitter 
+#                    including the description of the shape of the detectors
+#		     
+#    Scan and auto-width do not work with this card. The syntax for the set
+#    command here is slightly different:
+#    set fit2d [param] [value]
+#    
+#    Some remarks on the parameters in this card
+#    units: all lenghts in cm, xsec in pb
+#    - flux_norm: in order to have the final result normalized as number of
+#                 events for the whole experiment data taking, set this as
+#                 follows:
+#                 - prompt case: total number of DM events
+#                   npot * A^alpha / xsec_pp_everything(in pb)
+# 		    npot = number of proton on target
+#                   A = mass number target particles
+#                   alpha = scaling power (DM nucleon/ p nucleon)
+#                 - decay : npot
+#
+#    - prod_xsec_in norm: if true, the production xsec is included in the  
+#                         the nonrmalization facctor. This should be set to
+#                         True in case of promt production and to False 
+#			  in case of decay
+
+
+# c) run_card.dat: for prompt case only
+#                  it contains the main parameters for the run 
+#                  beam types and energies, and cuts
+#		     
+#    Beam types default, proton proton
+#    User must supply beam energies:
+#    set ebeam1 [value]
+#    set ebeam2 [value]
+#    
+#    useful remarks:
+#    - if not required, turn off systematic studies with
+#    set use_syst = False 
+#    - be careful to the cuts. For more inclusive predictions, lower o turn off
+#      them!
+
+# d) madspin_card.dat: for decay case only
+#                  it contains the chain of commands to be processed by 
+#                  madspin
+#		     
+#    The user should not in general change this file, unless to correct
+#    some mistakes done in the definition of the decay processes. 
+
+# All the above commands can be written down as a list of successive instructions into a text file 'input.txt'
+# in this case, run the plugin with the command
+./bin/mg5_aMC --mode=maddump ./[path]/input.txt 
+
+# The scan summary output is written in the main process directory as a usual
+# text file called scan_***. It contains a table with the run_name tag, the
+# parameters scanned, some optional intermediate results, and the number of
+# events for each interaction channel analized (if the user supplied the right
+# normalization). 
