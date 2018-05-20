@@ -316,10 +316,11 @@ class CellHistogram(object):
         peripheral = False
         # check whether the cell is on the boundary or not
         
-        fac=0.98
+        fac=0.95
+        epstol = 0.001
         wgt = cell.weight
         cell.pts.sort()
-        if(corner_x == self.canvas.corner.x):
+        if( abs(corner_x /self.canvas.corner.x -1.) < epstol ):
             peripheral = True
             weight=0
             for pt in cell.pts[::-1]:
@@ -331,7 +332,7 @@ class CellHistogram(object):
             width = width -(cell.pts[isplit+1].x-corner_x)
             corner_x = cell.pts[isplit+1].x
 
-        if(corner_x+width == self.canvas.corner.x+self.canvas.width):
+        if(abs( (corner_x+width)/(self.canvas.corner.x+self.canvas.width) -1.) < epstol):
             peripheral = True
             weight=0
             for pt in cell.pts:
@@ -347,7 +348,7 @@ class CellHistogram(object):
         for pt in cell.pts:
             pt.exchange_xy()
 
-        if(corner_y == self.canvas.corner.y):
+        if( abs( corner_y/self.canvas.corner.y -1. ) < epstol ):
             peripheral = True
             weight=0
             for pt in cell.pts[::-1]:
@@ -358,7 +359,7 @@ class CellHistogram(object):
             height = height -(cell.pts[isplit+1].y-corner_y)
             corner_y = cell.pts[isplit+1].y
             
-        if(corner_y+height == self.canvas.corner.y+self.canvas.height):
+        if( abs( (corner_y+height)/(self.canvas.corner.y+self.canvas.height) -1. ) < epstol) :
             peripheral = True
             weight=0
             for pt in cell.pts:
@@ -367,7 +368,7 @@ class CellHistogram(object):
                     isplit = cell.pts.index(pt)
                     break
             height = cell.pts[isplit-1].y-corner_y
-            
+
         s = str(corner_x) + "\t" + str(corner_y) + "\t" + \
             str(width) + "\t" + str(height) + "\n" 
         file.write(s)
@@ -628,7 +629,7 @@ class CellHistogram(object):
         cells = [canvas]
 
         npts=self.npts
-        weight_exit = self.weight/25
+        weight_exit = self.weight/50.
 
         split = [self.equalweight_split_vertically]
 

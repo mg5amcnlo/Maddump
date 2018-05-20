@@ -146,16 +146,23 @@ c     pbeam(1) and pbeam(2) are returned to the caller
       subroutine init_DMpdf(min)
 ***   Read the data table for phitilde(E) and perform the 1D fit ***  
       implicit none
+      include 'fit2D.inc'
       integer ios
       integer nmax,n,i
       parameter (nmax=1000) 
       double precision x(nmax),y(nmax),w(nmax),a(4)
 c      common/phitilde_table/x,y,w,n
       integer nxest,lwrk,iwrk(1000)
-      double precision s,min,max,xb,xe,fp,wrk(100000)
+      double precision s,min,max,xb,xe,fp,wrk(100000),resfac
       integer kx,nx,ier
       double precision tx(nmax),c(nmax)
-      common/fit1dim/kx,nx,tx,c,xe,xb,wrk
+      double precision E,fitvalue
+      real ran1
+      external ran1
+      integer iseed
+      data iseed /10/
+      common/fit1dim/kx,nx,tx,c,xe,xb,wrk,resfac
+      include '../../Source/fit2D_card.inc'
 
       open(unit=200,file='../ehist.dat',status='old',
      $              err=999)
@@ -166,7 +173,7 @@ c     store the data table energy, phitilde in the arrays x(n),y(n)
          w=0d0
 
 c     loop over infile lines until EoF is reached
-      n=1
+      n=3
       do 
          read(200,*,iostat=ios) (a(i), i=1,4)
          if (ios.gt.0) then
@@ -175,34 +182,60 @@ c     loop over infile lines until EoF is reached
             write(*,*) (a(i), i=1,4)
             call exit(-1)
          else if (ios.lt.0) then
-            n=n-1
+            n=n+1
+            x(2) = 0.5d0*(min+x(3))
+            y(2) = y(3)/2d0
+            w(2) = w(3)*2d0
+            x(1) = min
+            y(1) = y(2)/2d0
+            w(1) = w(2)*2d0
+            x(n-1) = 0.5d0*(max+x(n-2)) 
+            y(n-1) = y(n-2)/2d0
+            w(n-1)=w(n-2)*2d0
+            x(n)=max
+            y(n)=y(n-1)/2d0
+            w(n)=w(n-1)*2d0
             close(200)
             exit
          else
-            if (n.eq.1) min=a(1)  
+            if (n.eq.3) min=a(1)  
             x(n) = 0.5d0*(a(1)+a(2))
             y(n) = a(3)
-            if (a(4).gt.1d-12) then
-               w(n) = 1d0/a(4)
-            else
-               w(n) = 1d6 
-            endif
+            w(n) = 1d0/a(4)
             max=a(2)
             n=n+1
          endif
       enddo
 
+c     rescaling for numerical stability
+      resfac = maxval(y)
+      y(:) = y(:)/resfac
+      w(:) = w(:)*resfac
+               
 c     init parameters for bi-splines fitting  
       xb=min                       !xmin range
       xe=max                       !xmin range
       kx=3                         !x spline order
-      s = n+dsqrt(2d0*n)           !smoothing parameter
-      nxest= n/2         
+      s = n                     !smoothing parameter
+      nxest= n/2        
       lwrk = n*(kx+1)+nxest*(7+3*kx)
 
 c     curve fitting using the FITPACK by Dierckx
       call curfit(0,n,x,y,w,xb,xe,kx,s,nxest,nx,tx,c,fp,wrk,
      *     lwrk,iwrk,ier)
+
+      if(testplot) then
+         open(unit=230,file='../../../Cards/fit1D.dat',status='unknown')
+         do i=1,100000
+c     evaluate the spline interpolation
+            E = min + ran1(iseed)*(max-min)
+            call splev(tx,nx,c,kx,E,fitvalue,1,ier)
+            fitvalue = fitvalue*resfac
+            write(230,*) E, fitvalue
+         enddo
+         close(230)
+      endif
+      
       return
 
  999  write(*,*) 'Cannot open input data file, exit!'
@@ -217,28 +250,17 @@ c     curve fitting using the FITPACK by Dierckx
       parameter (nmax=1000) 
       integer kx,nx,ier
       double precision tx(nmax),c(nmax),xe,xb,wrk(100000)
-      double precision norm,splint
-      common/fit1dim/kx,nx,tx,c,xe,xb,wrk
+      double precision norm,splint,resfac
+      common/fit1dim/kx,nx,tx,c,xe,xb,wrk,resfac
       external splint
-
-c$$$      real ran1
-c$$$      external ran1
-c$$$      integer iseed
-c$$$      data iseed /0/
-
-
+      
 c     evaluate normalization
 c      norm = splint(tx,nx,c,kx,xb,xe,wrk)
 c      write(*,*) '#' , norm
 
-c      open(unit=210, file='../out.dat', status='unknown')
-c      do i=1,100000
 c     evaluate the spline interpolation
-c         E = .75d0 + ran1(iseed)*(344.5d0-.75d0)
       call splev(tx,nx,c,kx,E,DMpdf,1,ier)
-c      DMpdf = Dmpdf/norm
-      DMpdf = Dmpdf
-c         write(210,*) E, DMpdf
-c      enddo
-c      stop
+      DMpdf = Dmpdf*resfac
       end
+
+

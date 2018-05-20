@@ -298,7 +298,6 @@ c      data ncolalt/maxamps*0/
       include 'symswap.inc'
 
       include 'fit2D.inc'
-      include '../../Source/fit2D_card.inc'
 C-----
 C  BEGIN CODE
 C-----

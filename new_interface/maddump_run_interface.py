@@ -316,13 +316,12 @@ class MADDUMPRunCmd(cmd.CmdShell):
 
             misc.call(['./bin/generate_events', self.run_name, '-f'],
                       cwd=pjoin(self.dir_path, dir))
-            #misc.call(['./bin/generate_events', self.run_name],
             
             run_dir = pjoin(self.dir_path, dir,'Events',self.run_name)
 
             # store info in the corresponding run_dir 
             try:
-                output_tp = ['ehist.dat','cell_fortran.dat','in_DM.dat','mesh2D.png']
+                output_tp = ['ehist.dat','cell_fortran.dat','in_DM.dat','mesh2D.png','fit1D.dat']
                 for file in output_tp:
                     files.mv(pjoin(self.dir_path,dir,'Cards',file), pjoin(run_dir,file))
             except:
