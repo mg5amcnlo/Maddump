@@ -15,6 +15,7 @@ import models.model_reader as model_reader
 import madgraph.core.helas_objects as helas_objects
 
 from madgraph.iolibs.files import cp, ln, mv
+from .. import fit2D_card as fit2D
 
 import re
 pjoin = os.path.join
@@ -73,6 +74,7 @@ class MadDump_interface(master_interface.MasterCmd):
         self._evts_inputfile_todecay = [] 
         self._evts_inputfile_tointeract = [] 
         self._decay_list = []
+        self._particle_todisplaced=[]
         
 ################################################################################        
 # DEFINE COMMAND
@@ -248,7 +250,15 @@ class MadDump_interface(master_interface.MasterCmd):
                         'electron' : 'process ' + dm_candidate + ' e- > ' + dm_candidate + ' e- ' + excluded + ' @electron',
                         'ENS' : 'work in progress'}
             self.do_add(int_proc[tag.group(0)])
-            
+
+        elif len(args) and args[0] == 'displaced_decay':
+            if len(args)==2:
+                self._particle_todisplaced = [self._curr_model.get_particle(args[1])]
+                if not self._particle_todisplaced[0]:
+                    raise DMError, '%s is not a valid particle for the model.' % args[1] 
+            else:
+                raise DMError, 'The user must supply a valid particle to displaced!'
+            return
         else:
             if '@' in line:
                 line = re.sub(r'''(?<=@)(%s\b)''' % '\\b|'.join(self.process_tag), 
@@ -265,7 +275,7 @@ class MadDump_interface(master_interface.MasterCmd):
             out = {"standard options": out}
         
         if len(args) == 1:
-            options = ['production', 'interaction']
+            options = ['production', 'interaction', 'displaced_decay']
             out['maddump options'] = self.list_completion(text, options , line)
         
         return self.deal_multiple_categories(out, formatting)
@@ -333,19 +343,34 @@ class MadDump_interface(master_interface.MasterCmd):
         os.makedirs(cards_dir)
         cards = ['param_card.dat','param_card_default.dat',
                  'fit2D_card.dat','fit2D_card_default.dat']
-
+        #Decay
         if self._evts_inputfile_todecay:
             evts_todecay_dir = pjoin(self._out_dir, 'Events_to_decay')
             os.makedirs(evts_todecay_dir)
             ln(self._evts_inputfile_todecay[0], evts_todecay_dir,)
             self.write_madspin_card(cards_dir,evts_todecay_dir)
-
+        elif self._decay_list:
+            decay_dir = pjoin(self._out_dir, 'Events_to_decay')
+            os.makedirs(decay_dir)
+            self._evts_inputfile_todecay.append('unweighted_events.lhe.gz')
+            self.write_madspin_card(cards_dir,decay_dir)
+        
+        #interaction_only
         if self._evts_inputfile_tointeract:
             evts_tointeract_dir = pjoin(self._out_dir, 'Events_to_interact')
             os.makedirs(evts_tointeract_dir)
             ln(self._evts_inputfile_tointeract[0], evts_tointeract_dir,)
-
-        
+        #Displaced_decay
+        if self._particle_todisplaced:
+            evts_todisplaced_dir = pjoin(self._out_dir, 'Displaced_Decay')
+            os.makedirs(evts_todisplaced_dir)
+            proc_characteristics = open(pjoin(evts_todisplaced_dir,'proc_characteristics'),'w')
+            proc_characteristics.write('grouped_matrix = True' + '\n')
+            proc_characteristics.write('pdg_displ = ' + str(self._particle_todisplaced[0]['pdg_code'])+'\n')
+            proc_characteristics.write('BSM_model = ' + str(self._curr_model.get('modelpath'))+'\n')
+            proc_characteristics.close()
+            self.create_fit2D_card(cards_dir)
+            
         for proc in self._curr_proc_defs:
             
             if proc['id'] < 1000:
@@ -453,9 +478,7 @@ class MadDump_interface(master_interface.MasterCmd):
 
     def write_madspin_card(self,cpath,epath):
         """ """
-        #args = self._evts_inputfile_todecay[0].split('/')
-        #evts_file = pjoin(epath,args[-1])
-
+        
         evts_file = pjoin(epath,os.path.basename(self._evts_inputfile_todecay[0]))
         
         out = open(pjoin(cpath,'madspin_card.dat'),'w')
@@ -487,3 +510,14 @@ class MadDump_interface(master_interface.MasterCmd):
 
         self.optimize_order(pdg_list)
         self._multiparticles[label] = pdg_list
+
+        
+    #===========================================================================
+    #  create the fit2D_card 
+    #===========================================================================
+    def create_fit2D_card(self,path):
+        """  """
+        fit2D_card = fit2D.Fit2DCard()
+        
+        fit2D_card.write(pjoin(path, 'fit2D_card_default.dat'))
+        fit2D_card.write(pjoin(path, 'fit2D_card.dat'))

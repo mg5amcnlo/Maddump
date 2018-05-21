@@ -12,6 +12,7 @@ import logging
 import madgraph.iolibs.save_load_object as save_load_object
 import MadSpin.interface_madspin as interface_madspin
 import lhe_to_pythia_hadron_std as lheToPythia
+import displaced_decay as displ_decay
 
 pjoin = os.path.join
 logger = logging.getLogger('madgraph.plugin.maddump')
@@ -182,10 +183,19 @@ class MADDUMPRunCmd(cmd.CmdShell):
         interaction_dir_all = ['interaction_DIS','interaction_electron','interaction_ENS']
         listdir = subprocess.check_output("ls %s"%self.dir_path,shell=True).split()
 
+        self.displaced = False
         if 'production' in listdir:
-            self.DMmode='production_interaction'
+            if 'Events_to_decay' in listdir:
+                self.DMmode='production_decay'
+                self.displaced = True
+            else:
+                self.DMmode='production_interaction'
         elif 'Events_to_decay' in listdir:
-            self.DMmode = 'decay_interaction'
+            if 'Displaced_Decay' in listdir:
+                self.DMmode='decay_displaced'
+                self.displaced = True
+            else:
+                self.DMmode = 'decay_interaction'
         elif 'Events_to_interact' in listdir:
             self.DMmode = 'interaction_only'
         else:
@@ -196,7 +206,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
         for dir in listdir:
             if dir in interaction_dir_all:
                 self.interaction_dir.append(dir)
-                
+
         if options['name']:
             self.run_name = options['name']
         else:
@@ -204,27 +214,35 @@ class MADDUMPRunCmd(cmd.CmdShell):
             while os.path.exists(pjoin(self.dir_path, 'production', 'Events', 'run_%02d' %i)) or\
                   os.path.exists(pjoin(self.dir_path, 'Events_to_decay', 'Events', 'run_%02d' %i)) or \
                   os.path.exists(pjoin(self.dir_path, 'Events_to_interact', 'Events', 'run_%02d' %i)) or \
-                  any([os.path.exists(pjoin(self.dir_path, dir, 'Events', 'run_%02d' %i)) for dir in self.interaction_dir]):
+                  any([os.path.exists(pjoin(self.dir_path, dir, 'Events', 'run_%02d' %i)) for dir in self.interaction_dir]) or \
+                  os.path.exists(pjoin(self.dir_path, 'Displaced_Decay', 'Events', 'run_%02d' %i)):
                 i += 1
             self.run_name = 'run_%02d' % i
 
-        self.proc_characteristics = self.get_proc_characteristics(pjoin(self.dir_path,self.interaction_dir[0],'SubProcesses','proc_characteristics'))
-        
+        if self.interaction_dir:
+            self.proc_characteristics = self.get_proc_characteristics(pjoin(self.dir_path,self.interaction_dir[0],'SubProcesses','proc_characteristics'))
+
+        if self.displaced:
+            self.proc_characteristics = self.get_proc_characteristics(pjoin(self.dir_path,'Displaced_Decay','proc_characteristics'))
+            
         self.ask_run_configuration(mode=[], force=force)
         self.run_launch()
         
     @common_run.scanparamcardhandling(result_path=lambda obj:  pjoin(obj.me_dir, 'scan_%s.txt'))
     def run_launch(self):
         
-        if self.DMmode == 'production_interaction':
+        if self.DMmode in ['production_interaction','production_decay']:
             misc.call(['./bin/generate_events', self.run_name, '-f'],
                       cwd=pjoin(self.dir_path, 'production'))
             evts_path = pjoin(self.dir_path, 'production', 'Events', self.run_name, 'unweighted_events.lhe.gz') 
             results = self.load_results_db(pjoin(self.dir_path,'production'),self.run_name)
             label = 'xsec_prod (pb)'
             self.results[label] = results['cross']
+            if self.DMmode == 'production_decay':
+                decay_dir = pjoin(self.dir_path,'Events_to_decay')
+                files.ln(evts_path, decay_dir)
            
-        elif self.DMmode == 'decay_interaction':            
+        if self.DMmode in ['decay_interaction','production_decay','decay_displaced']:
             decay_dir = pjoin(self.dir_path,'Events_to_decay')
             listdir = subprocess.check_output("ls %s"%decay_dir,shell=True).split()
             for file in listdir:
@@ -259,7 +277,6 @@ class MADDUMPRunCmd(cmd.CmdShell):
             listdir = subprocess.check_output("ls %s"%decay_dir,shell=True).split()
 
             decayed_file = pjoin(decay_dir,os.path.basename(evts_file)+'_decayed.lhe.gz')
-            print(decayed_file)
             try:
                 files.mv(decayed_file,pjoin(evt_dir,'unweighted_events.lhe.gz'))
             except:
@@ -279,13 +296,30 @@ class MADDUMPRunCmd(cmd.CmdShell):
             #         return
             evts_path = pjoin(evt_dir,'unweighted_events.lhe.gz')
             
-        elif self.DMmode == 'interaction_only':
+        if self.DMmode == 'interaction_only':
             interactionevts_dir = pjoin(self.dir_path,'Events_to_interact')
             listdir = subprocess.check_output("ls %s"%interactionevts_dir,shell=True).split()
             for file in listdir:
                 if any( [ext in file for ext in ['hepmc','lhe']]):
                     evts_file = file            
             evts_path = pjoin(interactionevts_dir,evts_file)
+
+
+        if self.displaced:
+            displ_dir = pjoin(self.dir_path,'Displaced_Decay')
+            try:
+                os.makedirs(pjoin(displ_dir,'Events'))
+            except:
+                pass
+            
+            run_dir_displ = pjoin(displ_dir,'Events',self.run_name)
+            os.makedirs(run_dir_displ)
+            files.ln(evts_path, run_dir_displ)
+            displacement = displ_decay.displaced_decay(pjoin(run_dir_displ,'unweighted_events.lhe.gz'), pjoin(self.dir_path,'Cards','param_card.dat'),int(self.proc_characteristics['pdg_displ'])) 
+            displacement.finalize_output(pjoin(run_dir_displ,'evt_displaced.lhe'))
+            label = '#displaced_events'
+            self.results[label] = displacement.total_events
+            
             
         for dir in self.interaction_dir:
             cpath = pjoin(self.dir_path, dir, 'Cards')
@@ -366,9 +400,13 @@ class MADDUMPRunCmd(cmd.CmdShell):
         
         if self.DMmode == 'production_interaction': 
             cards = ['param_card.dat','fit2D_card.dat','run_card.dat']
+        elif self.DMmode == 'production_decay':
+            cards = ['param_card.dat','run_card.dat','madspin_card.dat']
         elif self.DMmode in ['decay_interaction','interaction_only']:
             cards = ['param_card.dat','fit2D_card.dat','madspin_card.dat']
-
+        elif self.DMmode == 'decay_displaced':
+            cards = ['param_card.dat','madspin_card.dat']
+            
         self.ask_edit_cards(cards,plot=False)
 
         self.auto_width = set() #ensure to reset auto_width! at the 
@@ -444,11 +482,15 @@ class MADDUMPRunCmd(cmd.CmdShell):
 
         out = 'to_run'
         while out not in ['0', 'done']:
+            #if 'fit2D_card.dat' in cards:
             out = ask(question, '0', possible_answer, timeout=60,
-                              path_msg='enter path', ask_class = MadDumpSelector,
-                              cards=cards, mode=mode, **opt)
+                      path_msg='enter path', ask_class = MadDumpSelector,
+                      cards=cards, mode=mode, **opt)
+            # else:
+            #     out = ask(question, '0', possible_answer, timeout=60,
+            #               path_msg='enter path', ask_class = common_run.AskforEditCard,
+            #               cards=cards, mode=mode, **opt)
 
-                
     ############################################################################
     def do_open(self, line):
         """Open a text file/ eps file / html file"""
