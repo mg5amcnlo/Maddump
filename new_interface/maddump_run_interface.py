@@ -682,27 +682,34 @@ class MadDumpSelector(common_run.AskforEditCard):
         args = [ a.lower() for a in args]
 
         if args[0] in ['fit2d']:
+            mode = 'fit2d'
             start = 1
             if args[1] == 'default':
                 logging.info('replace %s by the default card' % args[0])
                 self.maddump = fit2D.Fit2DCard(self.paths['fit2D_default'])
-                return
         else:
-            return super(MadDumpSelector, self).do_set(line)
-        
-        if args[start+1] == 'default':
-            default = self.maddump_def[args[start]]
-            self.setfit2D(args[start], default)
-        else:
-            if args[start] in self.maddump.list_parameter or \
-                   args[start] in self.maddump.dict_parameter:
-                val = ' '.join(args[start+1:])
-                val = val.split('#')[0]
-                self.setfit2D(args[start], val)
+            start = 0
+            mode = 'unknow'
+             
+        if args[start] in self.maddump_set:
+            if args[start+1] == 'default':
+                default = self.maddump_def[args[start]]
+                self.setfit2D(args[start], default)
             else:
-                self.setfit2D(args[start], args[start+1:][0])
+                if args[start] in self.maddump.list_parameter or \
+                       args[start] in self.maddump.dict_parameter:
+                    val = ' '.join(args[start+1:])
+                    val = val.split('#')[0]
+                    self.setfit2D(args[start], val)
+                else:
+                    self.setfit2D(args[start], args[start+1:][0])
+        elif mode == 'unknow':
+            return super(MadDumpSelector, self).do_set(line)
+        else:
+            logger.warning('%s not recognised as fit2D parameter. Please retry!', args[start+1])
+            return 
+        
         #write the new file
-
         self.maddump.write(self.paths['fit2D'])
         
     def setfit2D(self, name, value, loglevel=20):
