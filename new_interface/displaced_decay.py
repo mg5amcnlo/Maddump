@@ -15,14 +15,18 @@ class displaced_decay():
     c = 29979245800 # speed of light in cm/s
     hbar_times_c = 0.19732697e-13 # in GeV*cm
     
-    def __init__(self, lhe_path, param_card_path, pdg_code):
+    def __init__(self, lhe_path, param_card_path, mother, daughter):
         self.lhe_input = lhe_parser.EventFile(lhe_path)
         self.total_events = 0.
-        self.pdg_code = pdg_code
+        self.pdg_code = mother
         param_card = param_card_mod.ParamCard(param_card_path)
         self.mass = param_card['mass'].get(self.pdg_code).value
         self.width = param_card['decay'].get(self.pdg_code).value
-        self.BR = 1.
+        for BR in param_card['decay'].decay_table[self.pdg_code]:
+            if abs(BR.lhacode[1]) == abs(daughter):
+                self.BR = BR.value
+        if not self.BR:
+            raise Exception, 'No decay in %d, check the particle id and the couplings!' % daughter
         self.norm = 2e20
 
     def finalize_output(self, path):
@@ -41,7 +45,10 @@ class displaced_decay():
                         particle.vtim = displ
                         self.total_events += weight
             out.write_events(event)
-        self.total_events =self.total_events/nLLP * self.norm
+
+        # divided by  the total number ntot = len(out) of events 
+        # to take into account meson multiplicity!
+        self.total_events = self.total_events/len(out) * self.norm
         
                     
     def compute_weight_displacement(self,p):
@@ -61,6 +68,7 @@ class displaced_decay():
         beta= p.norm/p.E
         gamma = p.E/self.mass
         Lambda =  gamma*beta*self.hbar_times_c/self.width
+        #print(Lambda)
         if Lambda == 0.:
             print(gamma,beta)
         #print(gamma,Lambda)

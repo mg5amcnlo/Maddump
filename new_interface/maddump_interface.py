@@ -10,6 +10,7 @@ import madgraph.various.misc as misc
 
 import madgraph.interface.common_run_interface as common_run
 
+import models.write_param_card as param_writer
 import models.check_param_card as check_param_card
 import models.model_reader as model_reader
 import madgraph.core.helas_objects as helas_objects
@@ -52,7 +53,7 @@ class MadDump_interface(master_interface.MasterCmd):
   "%s" 
 
 
-    _define_options = ['darkmatter']
+    _define_options = ['darkmatter','decay_channel']
     _importevts_options = ['decay','interaction']
     
     # process number to distinguish the different type of matrix element
@@ -69,6 +70,7 @@ class MadDump_interface(master_interface.MasterCmd):
         
         super(MadDump_interface, self).__init__(*args, **opts)
         self._dm_candidate = []
+        self._decay_channel = []
         self._param_card = None
         self._out_dir = ''
         self._evts_inputfile_todecay = [] 
@@ -91,6 +93,15 @@ class MadDump_interface(master_interface.MasterCmd):
                     # self.update_model_with_EFT()
                 else:
                     raise DMError, 'The user must supply a dark matter candidate!'
+                
+            elif args[0] == 'decay_channel':
+                if len(args)==2:
+                    self._decay_channel = [self._curr_model.get_particle(args[1])]
+                    if not self._decay_channel[0]:
+                        raise DMError, '%s is not a valid particle for the model.' % args[1] 
+                    # self.update_model_with_EFT()
+                else:
+                    raise DMError, 'The user must supply a decay channel (daughter particle)!'
                 
         else:
             return super(MadDump_interface, self).do_define(line,**opts)
@@ -291,6 +302,13 @@ class MadDump_interface(master_interface.MasterCmd):
 
     def do_decay(self, line):
         self._decay_list.append(line)
+
+    # def do_displaced_decay(self, line):
+    #     args = self.split_arg(line)
+    #     self._particle_todisplaced = [self._curr_model.get_particle(args[0])]
+    #     if not self._particle_todisplaced[0]:
+    #         raise DMError, '%s is not a valid particle for the model.' % args[1] 
+        
         
     def complete_decay(self, text, line, begidx, endidx, formatting=True):
         """Complete particle information"""
@@ -304,9 +322,10 @@ class MadDump_interface(master_interface.MasterCmd):
     
     def do_output(self, line):
         """ """
-        
+
         if not self._curr_amps:
-            raise DMError, 'No valid process to output!'
+            if not self._particle_todisplaced:
+                raise DMError, 'No valid process to output!'
         
         args = self.split_arg(line)
 
@@ -366,10 +385,14 @@ class MadDump_interface(master_interface.MasterCmd):
             os.makedirs(evts_todisplaced_dir)
             proc_characteristics = open(pjoin(evts_todisplaced_dir,'proc_characteristics'),'w')
             proc_characteristics.write('grouped_matrix = True' + '\n')
-            proc_characteristics.write('pdg_displ = ' + str(self._particle_todisplaced[0]['pdg_code'])+'\n')
+            proc_characteristics.write('pdg_mother = ' + str(self._particle_todisplaced[0]['pdg_code'])+'\n')
+            proc_characteristics.write('pdg_daughter = '+ str(self._decay_channel[0]['pdg_code'])+'\n')
             proc_characteristics.write('BSM_model = ' + str(self._curr_model.get('modelpath'))+'\n')
             proc_characteristics.close()
             self.create_fit2D_card(cards_dir)
+            if not self._curr_amps:
+                self.create_param_card(cards_dir)
+                return
             
         for proc in self._curr_proc_defs:
             
@@ -521,3 +544,60 @@ class MadDump_interface(master_interface.MasterCmd):
         
         fit2D_card.write(pjoin(path, 'fit2D_card_default.dat'))
         fit2D_card.write(pjoin(path, 'fit2D_card.dat'))
+
+#TODO for decay_displaced
+
+    @staticmethod
+    def create_param_card_static(model, output_path, rule_card_path=False,
+                                 mssm_convert=True):
+        """ create the param_card.dat for a givent model --static method-- """
+        #1. Check if a default param_card is present:
+        done = False
+        if hasattr(model, 'restrict_card') and isinstance(model.restrict_card, str):
+            restrict_name = os.path.basename(model.restrict_card)[9:-4]
+            model_path = model.get('modelpath')
+            if os.path.exists(pjoin(model_path,'paramcard_%s.dat' % restrict_name)):
+                done = True
+                files.cp(pjoin(model_path,'paramcard_%s.dat' % restrict_name),
+                         output_path)
+        if not done:
+            param_writer.ParamCardWriter(model, output_path)
+         
+        if rule_card_path:   
+            if hasattr(model, 'rule_card'):
+                model.rule_card.write_file(rule_card_path)
+        
+        if mssm_convert:
+            model_name = model.get('name')
+            # IF MSSM convert the card to SLAH1
+            if model_name == 'mssm' or model_name.startswith('mssm-'):
+                import models.check_param_card as translator    
+                # Check the format of the param_card for Pythia and make it correct
+                if rule_card_path:
+                    translator.make_valid_param_card(output_path, rule_card_path)
+                translator.convert_to_slha1(output_path)        
+    
+    def create_param_card(self,path):
+        """ create the param_card.dat """
+
+        rule_card = pjoin(path, 'param_card_rule.dat')
+        model = self._curr_model
+        if not hasattr(model, 'rule_card'):
+            rule_card=False
+        self.create_param_card_static(model=model, 
+                                      output_path=pjoin(path, 'param_card.dat'), 
+                                      rule_card_path=rule_card, 
+                                      mssm_convert=True)
+
+    #===========================================================================
+    #  create the param_card 
+    #===========================================================================
+    # def create_param_card(self,path):
+    #     """  """
+    #     fit2D_card = fit2D.Fit2DCard()
+        
+    #     fit2D_card.write(pjoin(path, 'fit2D_card_default.dat'))
+    #     fit2D_card.write(pjoin(path, 'fit2D_card.dat'))
+
+
+    

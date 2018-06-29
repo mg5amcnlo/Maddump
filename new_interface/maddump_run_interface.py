@@ -281,7 +281,25 @@ class MADDUMPRunCmd(cmd.CmdShell):
                 files.mv(decayed_file,pjoin(evt_dir,'unweighted_events.lhe.gz'))
             except:
                 logger.error('MadSpin fails to create any decayed file.')
-                         
+
+            # if self.DMmode == 'decay_displaced':
+            #     madspin_cmd.update_status = lambda *x,**opt: self.update_status(*x, level='madspin',**opt)
+            #     self.update_madspin_evtfile(pjoin(self.me_dir,'Cards'),pjoin(evt_dir,'unweighted_events.lhe.gz'))
+            #     path = pjoin(self.me_dir, 'Cards', 'madspin_card_displ.dat')
+
+            #     madspin_cmd.import_command_file(path)
+            #     new_run = '%s_displaced_%i' % (self.run_name,i)
+            #     evt_dir = pjoin(decay_dir, 'Events',new_run)
+                
+            #     os.makedirs(evt_dir)
+            #     listdir = subprocess.check_output("ls %s"%decay_dir,shell=True).split()
+                
+            #     decayed_file = pjoin(decay_dir,os.path.basename(evts_file)+'_decayed.lhe.gz')
+            #     try:
+            #         files.mv(decayed_file,pjoin(evt_dir,'unweighted_events.lhe.gz'))
+            #     except:
+            #         logger.error('MadSpin fails to create any decayed file.')
+                
             # current_file = evts_file.replace('.lhe', '_decayed.lhe')
             # new_file = pjoin(evt_dir, new_run, )
             # if not os.path.exists(current_file):
@@ -315,7 +333,10 @@ class MADDUMPRunCmd(cmd.CmdShell):
             run_dir_displ = pjoin(displ_dir,'Events',self.run_name)
             os.makedirs(run_dir_displ)
             files.ln(evts_path, run_dir_displ)
-            displacement = displ_decay.displaced_decay(pjoin(run_dir_displ,'unweighted_events.lhe.gz'), pjoin(self.dir_path,'Cards','param_card.dat'),int(self.proc_characteristics['pdg_displ'])) 
+            displacement = displ_decay.displaced_decay(pjoin(run_dir_displ,'unweighted_events.lhe.gz'),
+                                            pjoin(self.dir_path,'Cards','param_card.dat'),
+                                            int(self.proc_characteristics['pdg_mother']),
+                                            int(self.proc_characteristics['pdg_daughter'])) 
             displacement.finalize_output(pjoin(run_dir_displ,'evt_displaced.lhe'))
             label = '#displaced_events'
             self.results[label] = displacement.total_events
@@ -339,7 +360,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
             else:
                 interaction_channel = None
                 
-            files.ln(evts_path, cpath)
+            files.ln(evts_path, cpath, name='unweighted_events.lhe.gz')
             
             with misc.chdir(cpath):
                 hist2D_energy_angle = meshfitter.fit2D_energy_theta(self.proc_characteristics, \
@@ -378,6 +399,22 @@ class MADDUMPRunCmd(cmd.CmdShell):
                 pythialhe.write_PYTHIA_input(pjoin(run_dir,'pythiainput_DIS.lhe'))
 
 
+    # def update_madspin_evtfile(self,path,evtfile):
+    #     madspin_card_default = open(pjoin(path,'madspin_card_displ_default.dat'),'r')
+    #     madspin_card = open(pjoin(path,'madspin_card_displ.dat'),'w')
+        
+    #     for line in madspin_card_default:
+    #         if "import" in line:
+    #             args = self.split_arg(line)
+    #             if args[1] != 'model':
+    #                 madspin_card.write('import '+evtfile+'\n')
+    #             else:
+    #                 madspin_card.write(line)
+
+    #         else:
+    #             madspin_card.write(line)
+
+                
     def load_results_db(self,path,run_name):
         """load the current results status"""
         print(path)
@@ -622,6 +659,7 @@ class MadDumpSelector(common_run.AskforEditCard):
          
     
     def check_card_consistency(self):
+        #return
         super(MadDumpSelector, self).check_card_consistency()
         
         
