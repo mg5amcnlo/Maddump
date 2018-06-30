@@ -863,6 +863,25 @@ class fit2D_energy_theta(CellHistogram):
             return 0.
         else:
             theta = np.arccos(ctheta)
+
+        # off-axis
+        if (self.fit2D_card['off_axis']):
+            thetac = self.fit2D_card['thetac']
+            delta_theta = self.fit2D_card['theta_aperture']
+            yc = z1*np.sin(thetac)
+            rcone_proj = z1*(np.tan(thetac+delta_theta)-np.tan(thetac))
+
+            if abs(theta -thetac) > delta_theta:
+                return 0.
+            
+            r = z1*stheta/ctheta            
+            sphi_star = (r**2-rcone_proj**2+yc**2)/(2.*r*yc)
+
+            if sphi < sphi_star:
+                return 0.
+            else:            
+                return self.fit2D_card['off_axis_depth']
+            
         # cylinder detector
         if (self.fit2D_card['cylinder']):
             theta_min = self.fit2D_card['theta_min']
@@ -942,10 +961,10 @@ class fit2D_energy_theta(CellHistogram):
         prod_xsec_flag = self.fit2D_card['prod_xsec_in_norm']
         if prod_xsec_flag:
             norm = norm*lhe_evts.cross
-        target_density = self.fit2D_card['target_density']
+        detector_density = self.fit2D_card['detector_density']
         depth = self.fit2D_card['depth']
         fac_cm2_pb = 10**36
-        norm = norm*(target_density*6.022e23)*depth/fac_cm2_pb
+        norm = norm*(detector_density*6.022e23)*depth/fac_cm2_pb
         nevt = len(lhe_evts)
         for event in lhe_evts:
             for particle in event:

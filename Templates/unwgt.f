@@ -638,7 +638,7 @@ c     This parameter is related to possible error in generation of the theta
 c     angle when no cell corresponds to the given energy value.
 c     The statistics about how many failures and the corresponding
 c     problematic energy values are printed in the file "gen_theta.stat"
-c     The user can set the multiplicative factor: raising it values
+c     The user can set the multiplicative factor: incrementing it values
 c     should result in a smaller number of failures.
          eps = 1d9
          ncells=1               !total number of cells
@@ -745,14 +745,32 @@ c     once a cell is selected, a value of theta is taken uniformly inside it
 
       subroutine pickphi(theta,rv,phi)
 *     extracts an azimuthal angle (phi) keeping the correlations theta-phi
-*     for the case of a rectangular hit surface. 
+*     for the case of a rectangular hit surface and off-axis detector
       implicit none
       include 'fit2D.inc'
       real * 8 rv(2),theta,phi,x_side_on2,y_side_on2
       real * 8 radius,phi0,phi1,phi_min,phi_max
+      real * 8 rcone_proj,yc,sphi_star,phimin,phimax
       double precision pi
       parameter (pi=3.1415926d0)
-      
+
+
+      if(off_axis) then
+         yc = d_target_detector*dsin(thetac)
+         rcone_proj =  d_target_detector*(dtan(thetac+theta_aperture)-dtan(thetac))
+         radius = d_target_detector*dtan(theta)
+         sphi_star = (radius**2-rcone_proj**2+yc**2)/(2.*radius*yc)
+         phimin= asin(sphi_star)
+         phimax=pi-phimin
+         if(phimax < phimin) then
+            write(*,*) 'Error: phimax < phimin'
+            call exit(-1)
+         endif
+         phi = phimin + (phimax-phimin)*rv(1)
+         return
+      endif
+
+
       x_side_on2 = x_side/2d0
       y_side_on2 = y_side/2d0
       
@@ -848,10 +866,30 @@ c     once a cell is selected, a value of theta is taken uniformly inside it
       real * 8 theta,cphi,sphi
       real * 8 radius,tgth,z1,z2,x1,y1,x2,y2,in_z1,in_z2,x3,y3,z3
       real * 8 heaviside,theta_star,xmax,xmin,ymax,ymin 
-
+      real * 8 rcone_proj,yc,sphi_star
       z1 = d_target_detector
       z2 = z1 + depth
 
+c--- off-axis
+      if(off_axis) then
+         yc = z1*dsin(thetac)
+         rcone_proj =  z1*(dtan(thetac+theta_aperture)-dtan(thetac))
+         if (dabs(theta-thetac) > theta_aperture) then
+            max_travel_distance = 0d0
+            return
+         endif
+         radius = z1*dtan(theta)
+         sphi_star = (radius**2-rcone_proj**2+yc**2)/(2.*radius*yc)
+
+         if (sphi < sphi_star ) then
+            max_travel_distance = 0d0
+            return
+         else
+            max_travel_distance = off_axis_depth
+            return
+         endif
+      endif
+      
 c--- cylinder detector
       if(cylinder) then
          if (theta.gt.theta_max) then

@@ -24,15 +24,20 @@
    %(flux_norm)s         =  flux_norm ! Overall flux normalization 
    %(prod_xsec_in_norm)s =  prod_xsec_in_norm ! whether multiply for the production cross section
    %(d_target_detector)s =  d_target_detector ! Distance between the target and the detector in cm 
-   %(target_density)s    =  target_density ! average target density per unit cube (g/cm^-3)
+   %(detector_density)s    = detector_density ! average detector density per unit cube (g/cm^-3)
 #*********************************************************************
 # Cuts on the detector shape 
 #*********************************************************************
-     %(xc)s     =  xc ! x coordinate central point wrt the beam axis
-     %(yc)s     =  yc ! y coordinate central point wrt the beam axis
-     
+
+# naive off-axis configuration (and radial cylidrical configuration)  
+     %(off_axis)s   =  off_axis ! select off-axis mode 
+     %(thetac)s         =  thetac ! angular coordinate  of the cone wrt the beam axis in rad
+     %(theta_aperture)s  =  theta_aperture ! angular aperture of the cone in rad
+     %(off_axis_depth)s  =  off_axis_depth ! cone depth in cm 
+
+
+# on-axis configuration (with sides parallel to the beam axis) 
      %(cylinder)s   =  cylinder ! True = select cylindrical geometry 
-     %(theta_min)s     =  theta_min ! >= 0
      %(theta_max)s     =  theta_max ! <= pi/2
 
      %(parallelepiped)s   =  parallelepiped ! True = select parallepiped geometry 

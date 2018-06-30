@@ -365,8 +365,8 @@ class MADDUMPRunCmd(cmd.CmdShell):
             with misc.chdir(cpath):
                 hist2D_energy_angle = meshfitter.fit2D_energy_theta(self.proc_characteristics, \
                                                 'unweighted_events.lhe.gz',interaction_channel)
-                if hist2D_energy_angle.npass < 1000:
-                    raise Exception, "Error: numbers of events entering the detector too small!"
+                if hist2D_energy_angle.npass < 100:
+                    raise Exception, "Error: numbers of events entering the detector too small! n_passed = %s " % hist2D_energy_angle.npass
                 hist2D_energy_angle.do_fit()
 
             misc.call(['./bin/generate_events', self.run_name, '-f'],

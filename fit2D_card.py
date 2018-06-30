@@ -25,14 +25,18 @@ class Fit2DCard(bannermod.RunCard):
     
         #detector parameters
         self.add_param("d_target_detector", 1.)
-        self.add_param("target_density", 1.)
+        self.add_param("detector_density", 1.)
         
         #cut
-        self.add_param("xc", 0., comment= 'x coordinate central point wrt the beam axis')
-        self.add_param("yc", 0., comment= 'y coordinate central point wrt the beam axis')
+        self.add_param("off_axis", False,comment= 'select off-axis mode')
+        #self.add_param("xc", 0., comment= 'x coordinate of the central point wrt the beam axis')
+        #self.add_param("yc", 0., comment= 'y coordinate central point wrt the beam axis in cm')
+        self.add_param("thetac", 0., comment= 'angular coordinate  of the cone wrt the beam axis in rad')
+        self.add_param("theta_aperture", 0., comment= 'angular aperture of the cone in rad')
+        self.add_param("off_axis_depth", 0., comment= 'cone depth in cm ')
         
         self.add_param("cylinder", False)
-        self.add_param("theta_min", 0.)
+        #self.add_param("theta_min", 0.)
         self.add_param("theta_max", np.pi/2.)
 
         self.add_param("parallelepiped", True)
