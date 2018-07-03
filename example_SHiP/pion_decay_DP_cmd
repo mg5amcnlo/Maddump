@@ -1,0 +1,27 @@
+import model DM_mesons_2
+import_events decay path/example_MesonFlux.hepmc
+decay pi0 > y1 a, y1 > xd xd~
+define darkmatter xd
+add process interaction @DIS
+output DP_electron_10
+launch
+set flux_norm 2.0e20
+set d_target_detector 3804.74
+set detector_density 5.0
+set parallelepiped True
+set x_side 90.3
+set y_side 74.9
+set depth 321.0
+set testplot True
+set gvd11 -3.333333e-4
+set gvu11  6.666666e-4
+set gvd22 -3.333333e-4
+set gvu22  6.666666e-4
+set gvd33 -3.333333e-4
+set gvu33  6.666666e-4
+set gvl11 -1.000000e-3
+set gvl22 -1.000000e-3
+set gvl33 -1.000000e-3
+set my1 scan1:[0.01*i for i in range(1,14)]
+set mxd scan1:[0.01/3.*i for i in range(1,14)]
+set wy1 auto

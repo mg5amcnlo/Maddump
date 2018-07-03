@@ -869,12 +869,12 @@ class fit2D_energy_theta(CellHistogram):
             thetac = self.fit2D_card['thetac']
             delta_theta = self.fit2D_card['theta_aperture']
             yc = z1*np.sin(thetac)
-            rcone_proj = z1*(np.tan(thetac+delta_theta)-np.tan(thetac))
+            rcone_proj = z1*(np.sin(thetac+delta_theta)-np.sin(thetac))
 
             if abs(theta -thetac) > delta_theta:
                 return 0.
             
-            r = z1*stheta/ctheta            
+            r = z1*stheta            
             sphi_star = (r**2-rcone_proj**2+yc**2)/(2.*r*yc)
 
             if sphi < sphi_star:

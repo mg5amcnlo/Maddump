@@ -757,8 +757,8 @@ c     once a cell is selected, a value of theta is taken uniformly inside it
 
       if(off_axis) then
          yc = d_target_detector*dsin(thetac)
-         rcone_proj =  d_target_detector*(dtan(thetac+theta_aperture)-dtan(thetac))
-         radius = d_target_detector*dtan(theta)
+         rcone_proj =  d_target_detector*(dsin(thetac+theta_aperture)-dsin(thetac))
+         radius = d_target_detector*dsin(theta)
          sphi_star = (radius**2-rcone_proj**2+yc**2)/(2.*radius*yc)
          phimin= asin(sphi_star)
          phimax=pi-phimin
@@ -774,7 +774,7 @@ c     once a cell is selected, a value of theta is taken uniformly inside it
       x_side_on2 = x_side/2d0
       y_side_on2 = y_side/2d0
       
-      radius = d_target_detector*dtan(theta)
+      radius = d_target_detector*dsin(theta)
       
       if (y_side_on2 .gt. x_side_on2) then
          
@@ -873,12 +873,12 @@ c     once a cell is selected, a value of theta is taken uniformly inside it
 c--- off-axis
       if(off_axis) then
          yc = z1*dsin(thetac)
-         rcone_proj =  z1*(dtan(thetac+theta_aperture)-dtan(thetac))
+         rcone_proj =  z1*(dsin(thetac+theta_aperture)-dsin(thetac))
          if (dabs(theta-thetac) > theta_aperture) then
             max_travel_distance = 0d0
             return
          endif
-         radius = z1*dtan(theta)
+         radius = z1*dsin(theta)
          sphi_star = (radius**2-rcone_proj**2+yc**2)/(2.*radius*yc)
 
          if (sphi < sphi_star ) then
