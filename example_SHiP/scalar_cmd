@@ -10,12 +10,12 @@ set ebeam2 0.938
 set use_syst False
 set flux_norm 19663072216.4
 set prod_xsec_in_norm True
-set d_target_detector 3804.75
-set detector_density  5.0
+set d_target_detector 5650.0
+set detector_density  3.72
 set parallelepiped True
-set x_side 90.3
-set y_side 74.9
-set depth 321.0
+set x_side 187.0
+set y_side 69.0
+set depth 200.0
 set testplot True
 set gsxr 0.0
 set gsxc 0.0
