@@ -81,8 +81,8 @@ launch [outpur_dir]
 #                    including the description of the shape of the detectors
 #		     
 #    Scan and auto-width do not work with this card. The syntax for the set
-#    command here is slightly different:
-#    set fit2d [param] [value]
+#    is as usual
+#    set [param] [value]
 #    
 #    Some remarks on the parameters in this card
 #    units: all lenghts in cm, xsec in pb
@@ -100,6 +100,24 @@ launch [outpur_dir]
 #                         the nonrmalization facctor. This should be set to
 #                         True in case of promt production and to False 
 #			  in case of decay
+#
+#    The other options allow to select the detector setup: off-axis or 
+#    on-axis (for a cylindrical or parallelepipedal shape of the detector)
+#    For the off-axis case the user must supply the following parameters: 
+
+# naive off-axis configuration (and radial cylidrical configuration)  
+     off_axis        =  True ! select off-axis mode 
+     thetac          =  XXX  ! angular coordinate  of the cone wrt the beam axis in rad
+     theta_aperture  =  XXX  ! angular aperture of the cone in rad
+     off_axis_depth  =  XXX  ! cone depth in cm 
+
+#    which correspond to a truncated cone-shaped detector in the thetac direction,
+#    aperture theta_aperture, and depth off_axis_depth. 
+#    To describe the actual shape of the detector, the user can proceed as follows:
+#    - consider a truncated cone-shaped detector which contains the actual detector
+#      (immersion procedure)
+#    - generate with maddump events for this 'bigger' configuration
+#    - reject events which lie outside the actual ('immersed') detector 
 
 
 # c) run_card.dat: for prompt case only
