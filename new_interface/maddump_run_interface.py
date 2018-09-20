@@ -335,9 +335,12 @@ class MADDUMPRunCmd(cmd.CmdShell):
             files.ln(evts_path, run_dir_displ)
             displacement = displ_decay.displaced_decay(pjoin(run_dir_displ,'unweighted_events.lhe.gz'),
                                             pjoin(self.dir_path,'Cards','param_card.dat'),
-                                            int(self.proc_characteristics['pdg_mother']),
-                                            int(self.proc_characteristics['pdg_daughter'])) 
+                                            int(self.proc_characteristics['pdg_mother']))
+#                                            int(self.proc_characteristics['pdg_daughter'])) 
             displacement.finalize_output(pjoin(run_dir_displ,'evt_displaced.lhe'))
+            #pythialhe_displ = lheToPythia.LHEtoPYTHIAHadronSTD(pjoin(run_dir_displ,'unweighted_events.lhe.gz'),target=None,mode='only_finalstates')
+            #pythialhe_displ.write_PYTHIA_input(pjoin(run_dir_displ,'pythiainput_displaced.lhe'))
+
             label = '#displaced_events'
             self.results[label] = displacement.total_events
             

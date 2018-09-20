@@ -15,18 +15,22 @@ class displaced_decay():
     c = 29979245800 # speed of light in cm/s
     hbar_times_c = 0.19732697e-13 # in GeV*cm
     
-    def __init__(self, lhe_path, param_card_path, mother, daughter):
+    def __init__(self, lhe_path, param_card_path, mother):
         self.lhe_input = lhe_parser.EventFile(lhe_path)
+        self.nevts = len(self.lhe_input)
         self.total_events = 0.
         self.pdg_code = mother
-        param_card = param_card_mod.ParamCard(param_card_path)
-        self.mass = param_card['mass'].get(self.pdg_code).value
-        self.width = param_card['decay'].get(self.pdg_code).value
-        for BR in param_card['decay'].decay_table[self.pdg_code]:
-            if abs(BR.lhacode[1]) == abs(daughter):
-                self.BR = BR.value
-        if not self.BR:
-            raise Exception, 'No decay in %d, check the particle id and the couplings!' % daughter
+        self.param_card = param_card_mod.ParamCard(param_card_path)
+        self.mass = self.param_card['mass'].get(self.pdg_code).value
+        self.width = self.param_card['decay'].get(self.pdg_code).value
+        #jet = [1,2,3,4,5,21]
+        # for BR in param_card['decay'].decay_table[self.pdg_code]:
+        #     if abs(BR.lhacode[1]) == abs(daughter):
+        #         if abs(BR.lhacode[2]) in jet:
+        #             if abs(BR.lhacode[3]) in jet:
+        #                 self.BR += BR.value
+        # if not self.BR:
+        #     raise Exception, 'No decay in %d, check the particle id and the couplings!' % daughter
         self.norm = 2e20
 
     def finalize_output(self, path):
@@ -39,18 +43,18 @@ class displaced_decay():
                     nLLP += 1
                     p = lhe_parser.FourMomentum(particle)
                     weight,displ = self.compute_weight_displacement(p)
+                    weight= weight*self.get_BR(event,self.pdg_code)
                     if weight == 0.:
                         particle.vtim = -1.
                     else:
                         particle.vtim = displ
                         self.total_events += weight
             out.write_events(event)
-
-        # divided by  the total number ntot = len(out) of events 
+        # divided by  the total number ntot = self.nevts of events 
         # to take into account meson multiplicity!
-        self.total_events = self.total_events/len(out) * self.norm
+        self.total_events = self.total_events/self.nevts * self.norm
+
         
-                    
     def compute_weight_displacement(self,p):
         ctheta = p.pz/p.norm
         if ctheta < 0 :
@@ -68,13 +72,44 @@ class displaced_decay():
         beta= p.norm/p.E
         gamma = p.E/self.mass
         Lambda =  gamma*beta*self.hbar_times_c/self.width
-        #print(Lambda)
         if Lambda == 0.:
             print(gamma,beta)
-        #print(gamma,Lambda)
-        weight = np.exp(-l1/Lambda) - np.exp(-l2/Lambda) *self.BR
+        weight = np.exp(-l1/Lambda) - np.exp(-l2/Lambda)
         displacement = -Lambda*np.log( np.exp(-l2/Lambda) + (np.exp(-l1/Lambda)-np.exp(-l2/Lambda))*random.random() )
         return weight,displacement
+
+    
+    def get_BR(self,event,pdgcode):
+        decay_evt=event.get_decay(pdg_code=pdgcode)
+        ndaughters=len(decay_evt)-1
+        pdg_daughters=[]
+        for particle in decay_evt:
+            if particle.status == 1:
+                pdg_daughters.append(particle.pid)
+
+        found = False
+        for BR in self.param_card['decay'].decay_table[9900014]:
+            if BR.lhacode[0] == ndaughters:
+                pdg_BR=[BR.lhacode[i] for i in range(1,ndaughters+1)]
+                if sorted(pdg_BR) == sorted(pdg_daughters):
+                    x=BR.value
+                    found=True
+                    break
+    
+        if not found:
+            for BR in self.param_card['decay'].decay_table[9900014]:
+                pdg_daughters_opposite = [-pdg_daughters[i] for i in range(ndaughters)]
+                if BR.lhacode[0] == ndaughters:            
+                    pdg_BR=[BR.lhacode[i] for i in range(1,ndaughters+1)]
+                    if sorted(pdg_BR) == sorted(pdg_daughters_opposite):
+                        x=BR.value
+                        found=True
+                        break
+                    
+        if not found:
+            raise Exception, 'Error in getting the BR for the current event, check the BRs have been computed correclty' 
+
+        return x
     
     def travel_distance(self,theta,cphi,sphi):
         d = 7000 # in cm
@@ -82,6 +117,3 @@ class displaced_decay():
         lmin = d/np.cos(theta)
         lmax = (d+delta)/np.cos(theta)
         return lmin,lmax
-
-
-    

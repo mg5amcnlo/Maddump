@@ -77,7 +77,7 @@ class MadDump_interface(master_interface.MasterCmd):
         self._evts_inputfile_tointeract = [] 
         self._decay_list = []
         self._particle_todisplaced=[]
-        
+        self._multiparticles = {}
 ################################################################################        
 # DEFINE COMMAND
 ################################################################################        
@@ -94,17 +94,19 @@ class MadDump_interface(master_interface.MasterCmd):
                 else:
                     raise DMError, 'The user must supply a dark matter candidate!'
                 
-            elif args[0] == 'decay_channel':
-                if len(args)==2:
-                    self._decay_channel = [self._curr_model.get_particle(args[1])]
-                    if not self._decay_channel[0]:
-                        raise DMError, '%s is not a valid particle for the model.' % args[1] 
-                    # self.update_model_with_EFT()
-                else:
-                    raise DMError, 'The user must supply a decay channel (daughter particle)!'
+            # elif args[0] == 'decay_channel':
+            #     if len(args)==2:
+            #         self._decay_channel = [self._curr_model.get_particle(args[1])]
+            #         if not self._decay_channel[0]:
+            #             raise DMError, '%s is not a valid particle for the model.' % args[1] 
+            #         # self.update_model_with_EFT()
+                # else:
+                #     raise DMError, 'The user must supply a decay channel (daughter particle)!'
                 
         else:
             return super(MadDump_interface, self).do_define(line,**opts)
+        
+        
         
     def complete_define(self, text, line, begidx, endidx, formatting=True):
         """Complete particle information + handle maddump options"""
@@ -386,7 +388,7 @@ class MadDump_interface(master_interface.MasterCmd):
             proc_characteristics = open(pjoin(evts_todisplaced_dir,'proc_characteristics'),'w')
             proc_characteristics.write('grouped_matrix = True' + '\n')
             proc_characteristics.write('pdg_mother = ' + str(self._particle_todisplaced[0]['pdg_code'])+'\n')
-            proc_characteristics.write('pdg_daughter = '+ str(self._decay_channel[0]['pdg_code'])+'\n')
+#            proc_characteristics.write('pdg_daughter = '+ str(self._decay_channel[0]['pdg_code'])+'\n')
             proc_characteristics.write('BSM_model = ' + str(self._curr_model.get('modelpath'))+'\n')
             proc_characteristics.close()
             self.create_fit2D_card(cards_dir)
@@ -515,25 +517,19 @@ class MadDump_interface(master_interface.MasterCmd):
         s = 'import ' + evts_file + '\n' 
         s += 'import model ' + self._curr_model.get("modelpath") + ' ' + pjoin(cpath,'param_card.dat') + '\n'   
         out.write(s)
+
+        if self._multiparticles:
+            for tag in self._multiparticles:
+                s='define '+str(tag)+' = '
+                for pid in self._multiparticles[tag]:
+                    s+=str(pid)+' '
+                s+='\n'
+                out.write(s)
+                
         for decay in self._decay_list:
             out.write('decay '+ decay + '\n')
         out.write('launch\n')
-                
-        
-    def define_multiparticles(self, label, list_of_particles):
-        """define a new multiparticle from a particle list (add both particle and anti-particle)"""
-        
-        pdg_list = []
-        for p in list_of_particles:
-            if p.get('name') == p.get('antiname'):
-                pdg_list.append(p.get('pdg_code'))
-            else:
-                pdg_list.append(p.get('pdg_code'))
-                pdg_list.append(-1*p.get('pdg_code'))
-
-        self.optimize_order(pdg_list)
-        self._multiparticles[label] = pdg_list
-
+                        
         
     #===========================================================================
     #  create the fit2D_card 

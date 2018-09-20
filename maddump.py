@@ -52,8 +52,8 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
         #       self.dir_path + '/Cards/meshfitter2D.py')
         #cp(temp_dir + 'lhe-meshfitter.py',
         #       self.dir_path + '/Cards/lhe-meshfitter.py')
-        cp(temp_dir + 'README_MADDUMP',
-               self.dir_path + '/Cards/README_MADDUMP')
+        #cp(temp_dir + 'README_MADDUMP',
+               #self.dir_path + '/Cards/README_MADDUMP')
         
         # Update the makefile to compile the FITPACK routine
         with open(self.dir_path+'/SubProcesses/makefile') as f:

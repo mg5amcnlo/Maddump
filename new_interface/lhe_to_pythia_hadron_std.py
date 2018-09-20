@@ -25,12 +25,12 @@ class LHEtoPYTHIAHadronSTD():
     quark_list = [1,2,3,4,-1,-2,-3,-4]
 
     
-    def __init__(self, path, target='proton'):
+    def __init__(self, path, target='proton',mode='DIS'):
         self.lhe_input = lhe_parser.EventFile(path)
         self.target = target
+        self.mode=mode
         #self.target = lhe_input[1].pdg        
 
-        
     def write_PYTHIA_input(self, path):
         #out_file = open(path,'w')
         out = lhe_parser.EventFile(path,mode='w')
@@ -45,40 +45,51 @@ class LHEtoPYTHIAHadronSTD():
             
     def parton_level_reconstruction(self,event):
         event_to_hadronize = lhe_parser.Event()
-        event_to_hadronize.tag = event.tag        
-        diquark = lhe_parser.Particle(event=event_to_hadronize)
-        quark = lhe_parser.Particle(event=event_to_hadronize)
-        for particle in event:
-            if particle.pid in self.quark_list:
-                if particle.status ==-1:
-                    diquark.pid = self.assign_diquark(self.quark_conv_table[particle.pid])
-                    diquark.status = 1
-                    diquark.mother1= 0
-                    diquark.mother2= 0                    
-                    diquark.px = -particle.px
-                    diquark.py = -particle.py
-                    diquark.pz = -particle.pz
-                    diquark.E = self.mass[self.target]-particle.px
-                    p = lhe_parser.FourMomentum(diquark)
-                    diquark.mass = p.mass
-                    diquark.vtim = 0
-                    diquark.helicity = 9
-                elif particle.status == 1:
-                    quark = copy.deepcopy(particle)
-                    quark.pid = self.quark_conv_table[particle.pid]
-                    quark.mother1= 0
-                    quark.mother2= 0
-                    if quark.color1 == 0:
-                        quark.color1 = quark.color2
-                        quark.color2 = 0
-                        diquark.color1 = 0
-                        diquark.color2 = quark.color1
-                    else:
-                        diquark.color1 = 0
-                        diquark.color2 = quark.color1                        
-        event_to_hadronize.nexternal = 2
-        event_to_hadronize.append(diquark)
-        event_to_hadronize.append(quark)
+        event_to_hadronize.tag = event.tag
+        if self.mode == 'DIS':
+            diquark = lhe_parser.Particle(event=event_to_hadronize)
+            quark = lhe_parser.Particle(event=event_to_hadronize)
+            for particle in event:
+                if particle.pid in self.quark_list:
+                    if particle.status ==-1:
+                        diquark.pid = self.assign_diquark(self.quark_conv_table[particle.pid])
+                        diquark.status = 1
+                        diquark.mother1= 0
+                        diquark.mother2= 0                    
+                        diquark.px = -particle.px
+                        diquark.py = -particle.py
+                        diquark.pz = -particle.pz
+                        diquark.E = self.mass[self.target]-particle.px
+                        p = lhe_parser.FourMomentum(diquark)
+                        diquark.mass = p.mass
+                        diquark.vtim = 0
+                        diquark.helicity = 9
+                    elif particle.status == 1:
+                        quark = copy.deepcopy(particle)
+                        quark.pid = self.quark_conv_table[particle.pid]
+                        quark.mother1= 0
+                        quark.mother2= 0
+                        if quark.color1 == 0:
+                            quark.color1 = quark.color2
+                            quark.color2 = 0
+                            diquark.color1 = 0
+                            diquark.color2 = quark.color1
+                        else:
+                            diquark.color1 = 0
+                            diquark.color2 = quark.color1
+                        
+            event_to_hadronize.nexternal = 2
+            event_to_hadronize.append(diquark)
+            event_to_hadronize.append(quark)
+        elif self.mode == 'only_finalstates':
+            event_to_hadronize.nexternal = 0
+            for particle in event:
+                if particle.status == 1:
+                    tmp=copy.deepcopy(particle)
+                    tmp.mother1=0
+                    tmp.mother2=0
+                    event_to_hadronize.append(tmp)
+                    event_to_hadronize.nexternal+=1
         return event_to_hadronize
         
         
