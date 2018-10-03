@@ -32,7 +32,7 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
         
     def copy_template(self, *args, **opts):
         
-        maddump_dir = pjoin(self.mgme_dir, 'PLUGIN/maddump/')
+        maddump_dir = os.path.dirname(os.path.realpath( __file__ ))
 
         # Copy the madevent templates
         misc.sprint("copy the associate template")
@@ -42,7 +42,7 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
         dir_util.copy_tree(pjoin(maddump_dir, 'FITPACK'), 
                            pjoin(self.dir_path, 'Source/FITPACK'))
         
-        temp_dir= maddump_dir + 'Templates/' 
+        temp_dir= pjoin(maddump_dir, 'Templates/') 
 
         # cp(temp_dir + 'Cards/fit2D_card.dat',
         #        self.dir_path + '/Cards/fit2D_card.dat')
@@ -75,8 +75,7 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
         remove_list = [['get_dummy_x1','get_dummy_x1_x2'],["store_events","write_leshouche"],["setclscales"]]
         for name, to_rm in zip(files, remove_list):
             template = open(pjoin(self.dir_path, "SubProcesses", name),"r").read()
-            plugin = open(pjoin(self.mgme_dir, "PLUGIN", "maddump", "Templates",name),"r").read()
-            misc.sprint(pjoin(self.mgme_dir, "PLUGIN", "maddump", "Templates",name))
+            plugin = open(pjoin(maddump_dir, "Templates",name),"r").read()
             ff = writers.FortranWriter(pjoin(self.dir_path, "SubProcesses", name))
             ff.remove_routine(template, to_rm, formatting=False)
             ff.writelines(plugin, formatting=False)
@@ -87,8 +86,7 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
         remove_list = [["read_event","write_event_to_stream","write_event"],["setrun"]]
         for name, to_rm in zip(files, remove_list):
             template = open(pjoin(self.dir_path, "Source", name),"r").read()
-            plugin = open(pjoin(self.mgme_dir, "PLUGIN", "maddump", "Templates",name),"r").read()
-            misc.sprint(pjoin(self.mgme_dir, "PLUGIN", "maddump", "Templates",name))
+            plugin = open(pjoin(maddump_dir, "Templates",name),"r").read()
             ff = writers.FortranWriter(pjoin(self.dir_path, "Source", name))
             ff.remove_routine(template, to_rm, formatting=False)
             ff.writelines(plugin, formatting=False)
