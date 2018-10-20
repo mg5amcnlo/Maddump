@@ -4,11 +4,14 @@
 #     sys.path.append('../../../../madgraph/various')
 #     sys.path.append('../../../../models')
 
-import madgraph.various.lhe_parser as lhe_parser
+
 import models.check_param_card as param_card_mod
 import numpy as np
-import random as random
-import copy as copy
+import random
+import copy
+
+import madgraph.various.lhe_parser as lhe_parser
+import madgraph.various.misc as misc
 
 class displaced_decay():
 
@@ -80,6 +83,7 @@ class displaced_decay():
 
     
     def get_BR(self,event,pdgcode):
+
         decay_evt=event.get_decay(pdg_code=pdgcode)
         ndaughters=len(decay_evt)-1
         pdg_daughters=[]
@@ -88,7 +92,9 @@ class displaced_decay():
                 pdg_daughters.append(particle.pid)
 
         found = False
-        for BR in self.param_card['decay'].decay_table[9900014]:
+
+
+        for BR in self.param_card['decay'].decay_table[pdgcode]:
             if BR.lhacode[0] == ndaughters:
                 pdg_BR=[BR.lhacode[i] for i in range(1,ndaughters+1)]
                 if sorted(pdg_BR) == sorted(pdg_daughters):
@@ -97,7 +103,7 @@ class displaced_decay():
                     break
     
         if not found:
-            for BR in self.param_card['decay'].decay_table[9900014]:
+            for BR in self.param_card['decay'].decay_table[pdgcode]:
                 pdg_daughters_opposite = [-pdg_daughters[i] for i in range(ndaughters)]
                 if BR.lhacode[0] == ndaughters:            
                     pdg_BR=[BR.lhacode[i] for i in range(1,ndaughters+1)]
