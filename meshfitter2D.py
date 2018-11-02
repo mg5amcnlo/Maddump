@@ -839,6 +839,8 @@ class fit2D_energy_theta(CellHistogram):
         self.proc_characteristics = proc_characteristics
         self.fit2D_card = fit2D.Fit2DCard(pjoin('fit2D_card.dat'))
         self.interaction_channel = interaction_channel
+        #check for corrupted events
+        self.fixLHE(input_lhe_evts)        
         #store and reweight evts
         self.npass,self.E_min,self.E_max,self.theta_min,self.theta_max,self.data = \
                     self.store_reweight(input_lhe_evts)
@@ -847,6 +849,21 @@ class fit2D_energy_theta(CellHistogram):
                                                 self.E_max-self.E_min,self.theta_max-self.theta_min,25)
 
         self.add_pts(self.data)
+
+    def fixLHE(self,inputLHE):
+        evtsLHEin = lhe_parser.EventFile(inputLHE)
+        evtsLHEout = lhe_parser.EventFile(path=inputLHE+'-tmp.gz',mode='w')
+        banner = evtsLHEin.get_banner()
+        banner.write(evtsLHEout, close_tag=False)
+        for event in evtsLHEin:
+            corrupted = False
+            for particle in event:
+                p = lhe_parser.FourMomentum(particle)
+                if(np.isnan(p.E)):
+                    corrupted = True
+            if not corrupted:
+                evtsLHEout.write_events(event)
+        os.system('mv '+inputLHE+'-tmp.gz '+inputLHE)
 
     def heaviside(self,x):
         if x>0:

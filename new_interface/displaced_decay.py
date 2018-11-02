@@ -17,7 +17,6 @@ class displaced_decay():
 
     c = 29979245800 # speed of light in cm/s
     hbar_times_c = 0.19732697e-13 # in GeV*cm
-    
     def __init__(self, lhe_path, param_card_path, mother):
         self.lhe_input = lhe_parser.EventFile(lhe_path)
         self.nevts = len(self.lhe_input)
@@ -26,6 +25,13 @@ class displaced_decay():
         self.param_card = param_card_mod.ParamCard(param_card_path)
         self.mass = self.param_card['mass'].get(self.pdg_code).value
         self.width = self.param_card['decay'].get(self.pdg_code).value
+        self.decay_list=[]
+        for BR in self.param_card['decay'].decay_table[self.pdg_code]:
+            pdg_BR=[BR.lhacode[i] for i in range(1,BR.lhacode[0]+1)]            
+            self.decay_list.append([pdg_BR,False,BR.value])
+
+        print(self.decay_list)
+        
         #jet = [1,2,3,4,5,21]
         # for BR in param_card['decay'].decay_table[self.pdg_code]:
         #     if abs(BR.lhacode[1]) == abs(daughter):
@@ -39,23 +45,27 @@ class displaced_decay():
     def finalize_output(self, path):
         #out_file = open(path,'w')
         out = lhe_parser.EventFile(path,mode='w')
-        nLLP = 0 
         for event in self.lhe_input:
+            self.update_BR(event,self.pdg_code)
             for particle in event:
                 if particle.pid == self.pdg_code:
-                    nLLP += 1
                     p = lhe_parser.FourMomentum(particle)
                     weight,displ = self.compute_weight_displacement(p)
-                    weight= weight*self.get_BR(event,self.pdg_code)
+                    weight= weight
                     if weight == 0.:
                         particle.vtim = -1.
                     else:
                         particle.vtim = displ
                         self.total_events += weight
             out.write_events(event)
+        BRfac = 0
+        for k in range(len(self.decay_list)):
+            if self.decay_list[k][1] == True:
+                BRfac += self.decay_list[k][2] 
         # divided by  the total number ntot = self.nevts of events 
         # to take into account meson multiplicity!
-        self.total_events = self.total_events/self.nevts * self.norm
+        print(BRfac)
+        self.total_events = self.total_events/self.nevts * self.norm * BRfac
 
         
     def compute_weight_displacement(self,p):
@@ -82,41 +92,61 @@ class displaced_decay():
         return weight,displacement
 
     
-    def get_BR(self,event,pdgcode):
+    # def get_BR(self,event,pdgcode):
 
-        decay_evt=event.get_decay(pdg_code=pdgcode)
-        ndaughters=len(decay_evt)-1
-        pdg_daughters=[]
-        for particle in decay_evt:
-            if particle.status == 1:
-                pdg_daughters.append(particle.pid)
+    #     decay_evt=event.get_decay(pdg_code=pdgcode)
+    #     print(decay_evt)
+    #     ndaughters=len(decay_evt)-1
+    #     pdg_daughters=[]
+    #     for particle in decay_evt:
+    #         if particle.status == 1:
+    #             pdg_daughters.append(particle.pid)
 
-        found = False
+    #     found = False
 
 
-        for BR in self.param_card['decay'].decay_table[pdgcode]:
-            if BR.lhacode[0] == ndaughters:
-                pdg_BR=[BR.lhacode[i] for i in range(1,ndaughters+1)]
-                if sorted(pdg_BR) == sorted(pdg_daughters):
-                    x=BR.value
-                    found=True
-                    break
+    #     for BR in self.param_card['decay'].decay_table[pdgcode]:
+    #         if BR.lhacode[0] == ndaughters:
+    #             pdg_BR=[BR.lhacode[i] for i in range(1,ndaughters+1)]
+    #             if sorted(pdg_BR) == sorted(pdg_daughters):
+    #                 x=BR.value
+    #                 found=True
+    #                 break
     
-        if not found:
-            for BR in self.param_card['decay'].decay_table[pdgcode]:
-                pdg_daughters_opposite = [-pdg_daughters[i] for i in range(ndaughters)]
-                if BR.lhacode[0] == ndaughters:            
-                    pdg_BR=[BR.lhacode[i] for i in range(1,ndaughters+1)]
-                    if sorted(pdg_BR) == sorted(pdg_daughters_opposite):
-                        x=BR.value
-                        found=True
-                        break
+    #     if not found:
+    #         for BR in self.param_card['decay'].decay_table[pdgcode]:
+    #             pdg_daughters_opposite = [-pdg_daughters[i] for i in range(ndaughters)]
+    #             if BR.lhacode[0] == ndaughters:            
+    #                 pdg_BR=[BR.lhacode[i] for i in range(1,ndaughters+1)]
+    #                 if sorted(pdg_BR) == sorted(pdg_daughters_opposite):
+    #                     x=BR.value
+    #                     found=True
+    #                     break
                     
-        if not found:
-            raise Exception, 'Error in getting the BR for the current event, check the BRs have been computed correclty' 
+    #     if not found:
+    #         raise Exception, 'Error in getting the BR for the current event, check the BRs have been computed correclty' 
 
-        return x
-    
+    #     return x
+
+    def update_BR(self,event,pdgcode):
+
+        pdg_daughters=[]
+
+        for i in range(len(event)):
+            if (event[i].pid==pdgcode) and (event[i].status==2):
+                j=1 
+                while(event[i+j].status==1):
+                    pdg_daughters.append(event[i+j].pid)
+                    j+=1
+                    if(i+j==len(event)):
+                        break
+                        
+                pdg_daughters_opposite = [-pdg_daughters[i] for i in range(len(pdg_daughters))]
+                for k in range(len(self.decay_list)):
+                    if (sorted(pdg_daughters) == sorted(self.decay_list[k][0]) or sorted(pdg_daughters_opposite) == sorted(self.decay_list[k][0])):
+                        self.decay_list[k][1] = True
+
+                        
     def travel_distance(self,theta,cphi,sphi):
         d = 7000 # in cm
         delta = 5500 # in cm
