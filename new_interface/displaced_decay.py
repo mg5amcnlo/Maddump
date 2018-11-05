@@ -30,7 +30,7 @@ class displaced_decay():
             pdg_BR=[BR.lhacode[i] for i in range(1,BR.lhacode[0]+1)]            
             self.decay_list.append([pdg_BR,False,BR.value])
 
-        print(self.decay_list)
+        #print(self.decay_list)
         
         #jet = [1,2,3,4,5,21]
         # for BR in param_card['decay'].decay_table[self.pdg_code]:
@@ -64,7 +64,7 @@ class displaced_decay():
                 BRfac += self.decay_list[k][2] 
         # divided by  the total number ntot = self.nevts of events 
         # to take into account meson multiplicity!
-        print(BRfac)
+        #print(BRfac)
         self.total_events = self.total_events/self.nevts * self.norm * BRfac
 
         
