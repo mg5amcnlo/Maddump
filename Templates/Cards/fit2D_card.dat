@@ -16,15 +16,28 @@
 #*********************                                                 
 # Fitting Parameters
 #*********************                                               
-#                                                                    
+
+
+#*********************************************************************
+# Fit parameters
+#*********************************************************************
+   %(nevts_interaction)s =  nevts_interaction ! Number of events to be generated within the interaction process. A negative value stands for the default behavior, which corresponds to the choice 3* *effective number of input events) 
+   %(npoints_cell)s       =  npoints_cell ! Minimum numebr of point per cell: internal parameter which specifies the exit condition of the fitting procedure 
+   %(rescale_fac)s       =  rescale_fac ! to study the fit uncertainties on DM energy spectrum: 0 for central value, 1 for the upper limit, -1 for the lower limit
+   %(fit_syst)s       =  fit_syst ! enable the computation and the storing of fit systematics analyses. They are time comsuming, the default behavior is to take them off
+   %(e_arr)s       =  e_arr ! python style array of energy values for which angular distribution will be computed
+   %(nbins)s       = nbins ! number of bins for the 1D angular histograms
+   
+
 #*********************************************************************
 # Detector parameters
 #*********************************************************************
-   %(nevts_interaction)s =  nevts_interaction ! Number of events to be generated within the interaction process
    %(flux_norm)s         =  flux_norm ! Overall flux normalization 
    %(prod_xsec_in_norm)s =  prod_xsec_in_norm ! whether multiply for the production cross section
    %(d_target_detector)s =  d_target_detector ! Distance between the target and the detector in cm 
    %(detector_density)s    = detector_density ! average detector density per unit cube (g/cm^-3)
+   
+
 #*********************************************************************
 # Cuts on the detector shape 
 #*********************************************************************

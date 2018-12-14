@@ -734,7 +734,7 @@ c     once a cell is selected, a value of theta is taken uniformly inside it
          endif
       enddo
 
-      write(*,*) 'theta do not generate! Check the consistency of cell_fortran.dat grid!'
+      write(*,*) 'theta not generated! Check the consistency of cell_fortran.dat grid!'
       call exit(-1)
       return
       

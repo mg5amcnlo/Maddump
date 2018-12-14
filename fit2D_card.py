@@ -17,8 +17,18 @@ class Fit2DCard(bannermod.RunCard):
     def default_setup(self):
         """default value for the fit2D_card.dat"""
 
-        self.add_param("nevts_interaction", 10000, comment= 'Number of events to be generated within the interaction process')
+        self.add_param("nevts_interaction", -1, comment= 'nevts_interaction ! Number of events to be generated within the interaction process. A negative value stands for the default behavior, which corresponds to the choice 3* *effective number of input events')
 
+        self.add_param("npoints_cell", 50, comment= 'Minimum numebr of point per cell: internal parameter which specifies the exit condition of the fitting procedure')
+        
+        self.add_param("rescale_fac", 0, comment= 'to study the fit uncertainties on DM energy spectrum: 0 for central value, 1 for the upper limit, -1 for the lower limit')
+
+        self.add_param("fit_syst", False, comment= 'enable the computation and the storing of fit systematics analyses. They are time comsuming, the default behavior is to take them off')
+
+        self.add_param("e_arr", str(1.) , comment= 'Energy values for which angular distribution will be computed. Format E1,E2,... ')
+
+        self.add_param("nbins", 40, comment= 'number of bins for the 1D angular histograms')
+            
         #flux normalization
         self.add_param("flux_norm", 1., comment= 'Overall normalization of the incoming flux without applying cuts')
         self.add_param("prod_xsec_in_norm", False, comment= 'If True the weight is multiplied by the production cross section')

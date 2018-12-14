@@ -371,6 +371,8 @@ class MADDUMPRunCmd(cmd.CmdShell):
                 if hist2D_energy_angle.npass < 100:
                     raise Exception, "Error: numbers of events entering the detector too small! n_passed = %s " % hist2D_energy_angle.npass
                 hist2D_energy_angle.do_fit()
+                if fit2D_card['fit_syst']:
+                    hist2D_energy_angle.check_consistency()
 
             misc.call(['./bin/generate_events', self.run_name, '-f'],
                       cwd=pjoin(self.dir_path, dir))
@@ -379,7 +381,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
 
             # store info in the corresponding run_dir 
             try:
-                output_tp = ['ehist.dat','cell_fortran.dat','in_DM.dat','mesh2D.png','fit1D.dat']
+                output_tp = ['ehist.dat','cell_fortran.dat','cell_fortran-L.dat','cell_fortran-R.dat','in_DM.dat','mesh2D.png','mesh2D-L.png','mesh2D-H.png','fit1D.dat']
                 for file in output_tp:
                     files.mv(pjoin(self.dir_path,dir,'Cards',file), pjoin(run_dir,file))
             except:

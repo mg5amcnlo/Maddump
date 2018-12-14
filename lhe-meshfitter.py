@@ -21,7 +21,7 @@
 ################################################################################
 
 if '__main__' == __name__:
-    import sys
+    import sysg
     sys.path.append('../../../')
     sys.path.append('../../../madgraph/various')
 

@@ -168,9 +168,9 @@ c      common/phitilde_table/x,y,w,n
      $              err=999)
 
 c     store the data table energy, phitilde in the arrays x(n),y(n)
-         x=0d0
-         y=0d0
-         w=0d0
+      x=0d0
+      y=0d0
+      w=0d0
 
 c     loop over infile lines until EoF is reached
       n=3
@@ -200,13 +200,14 @@ c     loop over infile lines until EoF is reached
          else
             if (n.eq.3) min=a(1)  
             x(n) = 0.5d0*(a(1)+a(2))
-            y(n) = a(3)
+            y(n) = a(3)+rescale_fac*a(4)
             w(n) = 1d0/a(4)
             max=a(2)
             n=n+1
          endif
       enddo
 
+      
 c     rescaling for numerical stability
       resfac = maxval(y)
       y(:) = y(:)/resfac
