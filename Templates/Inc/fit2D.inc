@@ -1,12 +1,12 @@
       double precision flux_norm, d_target_detector,detector_density,
      &           thetac,theta_aperture,off_axis_depth,
-     &           theta_max,rescale_fac,
+     &           theta_max,rescale_fac,z_average,a_average,
      &		 x_side,y_side,depth
-      integer nevts_interaction,nevts_norm,npoints_cell,ncores,nbins,Z_average,A_average
+      integer nevts_interaction,nevts_norm,npoints_cell,ncores,nbins,
       logical prod_xsec_in_norm,off_axis,cylinder,parallelepiped,testplot,fit_syst
       character *200 e_arr
       common/fit2D_detector/flux_norm,d_target_detector,detector_density,
-     &           thetac,theta_aperture,off_axis_depth,
+     &           thetac,theta_aperture,off_axis_depth,Z_average,A_average,
      &           theta_max,x_side,y_side,depth,rescale_fac,nevts_interaction,
-     &		 nevts_norm,npoints_cell,ncores,nbins,Z_average,A_average,
+     &		 nevts_norm,npoints_cell,ncores,nbins,
      &		 prod_xsec_in_norm,off_axis,cylinder,parallelepiped,testplot,fit_syst,e_arr

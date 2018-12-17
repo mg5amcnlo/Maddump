@@ -37,8 +37,8 @@ class Fit2DCard(bannermod.RunCard):
         #detector parameters
         self.add_param("d_target_detector", 1.)
         self.add_param("detector_density", 1.)
-        self.add_param("Z_average", 1, comment='average atomic number')
-        self.add_param("A_average", 2, comment='average mass number')
+        self.add_param("z_average", 1., comment='average atomic number')
+        self.add_param("a_average", 2., comment='average mass number')
         
         #cut
         self.add_param("off_axis", False,comment= 'select off-axis mode')

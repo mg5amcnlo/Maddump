@@ -36,8 +36,8 @@
    %(nevts_norm)s         =  nevts_norm ! Number of primary collision events for normalization purposes (it is used to compute the average multiplicity per collision event). A negative value stands for the default behavior, which corresponds to set it to the total events in the input events file
    %(prod_xsec_in_norm)s =  prod_xsec_in_norm ! whether multiply for the production cross section
    %(d_target_detector)s =  d_target_detector ! Distance between the target and the detector in cm 
-   %(Z_average)s    = Z_average ! average atomic number
-   %(A_average)s    = A_average ! average mass number
+   %(z_average)s    = z_average ! average atomic number
+   %(a_average)s    = a_average ! average mass number
 
 #*********************************************************************
 # Cuts on the detector shape 
