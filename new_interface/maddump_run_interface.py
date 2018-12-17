@@ -381,7 +381,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
 
             # store info in the corresponding run_dir 
             try:
-                output_tp = ['ehist.dat','cell_fortran.dat','cell_fortran-L.dat','cell_fortran-R.dat','in_DM.dat','mesh2D.png','mesh2D-L.png','mesh2D-H.png','fit1D.dat']
+                output_tp = ['ehist.dat','cell_fortran.dat','in_DM.dat','mesh2D.png','fit1D.dat','cell_fortran-L.dat','cell_fortran-H.dat','mesh2D-L.png','mesh2D-H.png']
                 for file in output_tp:
                     files.mv(pjoin(self.dir_path,dir,'Cards',file), pjoin(run_dir,file))
             except:
@@ -399,9 +399,9 @@ class MADDUMPRunCmd(cmd.CmdShell):
                 raise Exception, 'Error: events file not generated!'
             
             # for DIS, generate the LHE events to be showered by Pythia
-            if interaction_channel == 'DIS': 
-                pythialhe = lheToPythia.LHEtoPYTHIAHadronSTD(pjoin(run_dir,'unweighted_events_DIS.lhe.gz'))
-                pythialhe.write_PYTHIA_input(pjoin(run_dir,'pythiainput_DIS.lhe'))
+            #if interaction_channel == 'DIS': 
+                #pythialhe = lheToPythia.LHEtoPYTHIAHadronSTD(pjoin(run_dir,'unweighted_events_DIS.lhe.gz'))
+                #pythialhe.write_PYTHIA_input(pjoin(run_dir,'pythiainput_DIS.lhe'))
 
 
     # def update_madspin_evtfile(self,path,evtfile):
