@@ -897,7 +897,7 @@ class fit2D_energy_theta(CellHistogram):
         self.fit2D_card = fit2D.Fit2DCard(pjoin('fit2D_card.dat'))
         self.interaction_channel = interaction_channel
         #check for corrupted events
-        self.fixLHE(input_lhe_evts)        
+        #self.fixLHE(input_lhe_evts)        
         #store and reweight evts
         self.npass,self.E_min,self.E_max,self.theta_min,self.theta_max,self.data = \
                     self.store_reweight(input_lhe_evts)
@@ -1040,7 +1040,11 @@ class fit2D_energy_theta(CellHistogram):
         depth = self.fit2D_card['depth']
         fac_cm2_pb = 10**36
         norm = norm*(detector_density*6.022e23)*depth/fac_cm2_pb
-        nevt = len(lhe_evts)
+        if self.interaction_channel == 'electron':
+            norm = norm * self.fit2D_card['Z_average']/self.fit2D_card['A_average']
+        nevt=self.fit2D_card['nevts_norm']
+        if nevt < 0:
+            nevt = len(lhe_evts)
         for event in lhe_evts:
             for particle in event:
                 if particle.status == 1: # stable final state 

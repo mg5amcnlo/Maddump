@@ -25,17 +25,20 @@ class Fit2DCard(bannermod.RunCard):
 
         self.add_param("fit_syst", False, comment= 'enable the computation and the storing of fit systematics analyses. They are time comsuming, the default behavior is to take them off')
 
-        self.add_param("e_arr", str(1.) , comment= 'Energy values for which angular distribution will be computed. Format E1,E2,... ')
+        self.add_param("e_arr", str(1.) , comment= 'Energy values for which angular distributions will be computed. Format E1,E2,... ')
 
         self.add_param("nbins", 40, comment= 'number of bins for the 1D angular histograms')
             
         #flux normalization
         self.add_param("flux_norm", 1., comment= 'Overall normalization of the incoming flux without applying cuts')
+        self.add_param("nevts_norm", -1, comment= 'Number of primary collision events for normalization purposes (it is used to compute the average multiplicity per collision event). A negative value stands for the default behavior, which corresponds to set it to the total events in the input events file')
         self.add_param("prod_xsec_in_norm", False, comment= 'If True the weight is multiplied by the production cross section')
     
         #detector parameters
         self.add_param("d_target_detector", 1.)
         self.add_param("detector_density", 1.)
+        self.add_param("z_average", 1., comment='average atomic number')
+        self.add_param("a_average", 2., comment='average mass number')
         
         #cut
         self.add_param("off_axis", False,comment= 'select off-axis mode')
