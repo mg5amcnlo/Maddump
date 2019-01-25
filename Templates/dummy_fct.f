@@ -262,6 +262,9 @@ c      write(*,*) '#' , norm
 c     evaluate the spline interpolation
       call splev(tx,nx,c,kx,E,DMpdf,1,ier)
       DMpdf = Dmpdf*resfac
+
+      if (DMpdf.lt.0d0) DMpdf = 0d0
+      
       end
 
 

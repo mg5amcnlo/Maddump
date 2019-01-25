@@ -19,6 +19,7 @@ class displaced_decay():
     hbar_times_c = 0.19732697e-13 # in GeV*cm
     def __init__(self, lhe_path, param_card_path, mother):
         self.lhe_input = lhe_parser.EventFile(lhe_path)
+        self.lhe_input.allow_empty_event = True
         self.nevts = len(self.lhe_input)
         self.total_events = 0.
         self.pdg_code = mother
