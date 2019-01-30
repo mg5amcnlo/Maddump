@@ -1,0 +1,58 @@
+import model DMsimp_UFO-full
+generate production p p > xd xd~ /y1
+define darkmatter xd
+add process interaction @DIS /y1
+output scalar
+launch
+set nevents 100k
+set ebeam1 400.
+set ebeam2 0.938
+set use_syst False
+set flux_norm 19663072216.4
+set prod_xsec_in_norm True
+set d_target_detector 5650.0
+set detector_density 3.72
+set parallelepiped True
+set x_side 187.0
+set y_side 69.0
+set depth 200.0
+set testplot True
+set gsxr 0.0
+set gsxc 0.0
+set gsxd 1.0
+set gpxd 0.0
+set gsd11 1e-3
+set gsu11 1e-3
+set gsd22 0.0
+set gsu22 0.0
+set gsd33 0.0
+set gsu33 0.0
+set gpd11 0.0
+set gpu11 0.0
+set gpd22 0.0
+set gpu22 0.0
+set gpd33 0.0
+set gpu33 0.0
+set gsg 0.0
+set gpg 0.0
+set gvxc 0.0
+set gvxd 0.0
+set gaxd 0.0
+set gpxd 0.0
+set gvd11 0.0
+set gvu11 0.0
+set gvd22 0.0
+set gvu22 0.0
+set gvd33 0.0
+set gvu33 0.0
+set gad11 0.0
+set gau11 0.0
+set gad22 0.0
+set gau22 0.0
+set gad33 0.0
+set gau33 0.0
+set mxd 0.75
+set my0 scan:[i for i in range(2,11,1)]
+set wy0 auto
+set ymdo 2.462206e+02
+set ymup 2.462206e+02
