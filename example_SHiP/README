@@ -1,0 +1,19 @@
+************************************************
+example: input commands files
+************************************************
+
+To run: copy the XXX_cmd file in the main madgraph
+directory and give the command:
+
+./bin/maddump.py ./XXX_cmd
+
+
+Remark: for dark photons produced in pion decay
+before running the main script, 
+- extract the DM_meson_2.tgz file and put it
+  inside the models/ directory
+- modify the import_events line in the pion_decay_DP_cmd
+  for the correct path to the input pion events file,
+  with .hepmc or .lhe extensions  
+  (for testing purposes, you can use the 'example_MesonFlux.hepmc'
+  file)
