@@ -9,6 +9,8 @@ import madgraph.various.banner as banner_mod
 import madgraph.iolibs.group_subprocs as group_subprocs
 
 import fit2D_card as fit2D
+import bremsstrahlung_card as bremsstrahlung
+import ebeampdffit_card as ebeampdffit
 
 pjoin = os.path.join
 
@@ -48,6 +50,10 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
         #        self.dir_path + '/Cards/fit2D_card.dat')
         cp(temp_dir + 'Inc/fit2D.inc',
                self.dir_path + '/Source/fit2D.inc')
+        cp(temp_dir + 'Inc/bremsstrahlung.inc',
+               self.dir_path + '/Source/bremsstrahlung.inc')
+        cp(temp_dir + 'Inc/ebeampdf_fit.inc',
+               self.dir_path + '/Source/ebeampdf_fit.inc')
         #cp(temp_dir + 'meshfitter2D.py',
         #       self.dir_path + '/Cards/meshfitter2D.py')
         #cp(temp_dir + 'lhe-meshfitter.py',
@@ -82,8 +88,8 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
             ff.close()
 
         #modiy existing fortran code in Source
-        files = ["rw_events.f","setrun.f"]
-        remove_list = [["read_event","write_event_to_stream","write_event"],["setrun"]]
+        files = ["rw_events.f","setrun.f","PDF/pdg2pdf.f"]
+        remove_list = [["read_event","write_event_to_stream","write_event"],["setrun"],["pdg2pdf"]]
         for name, to_rm in zip(files, remove_list):
             template = open(pjoin(self.dir_path, "Source", name),"r").read()
             plugin = open(pjoin(maddump_dir, "Templates",name),"r").read()
@@ -91,6 +97,7 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
             ff.remove_routine(template, to_rm, formatting=False)
             ff.writelines(plugin, formatting=False)
             ff.close()
+
 
 
     def write_source_makefile(self, writer):
@@ -117,6 +124,9 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
         """ Create the links from the files in sources """
 
         ln(self.dir_path + '/Source/fit2D.inc', self.dir_path + '/SubProcesses', log=False)
+        ln(self.dir_path + '/Source/bremsstrahlung.inc', self.dir_path + '/SubProcesses', log=False)
+        ln(self.dir_path + '/Source/ebeampdf_fit.inc', self.dir_path + '/SubProcesses', log=False)
+        
         return super(MadDump, self).make_source_links()
             
     def link_files_in_SubProcess(self, Ppath):
@@ -128,6 +138,8 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
 
         # import fit2D.in into Subprocesses/P
         ln('../fit2D.inc', cwd=Ppath)
+        ln('../bremsstrahlung.inc', cwd=Ppath)
+        ln('../ebeampdf_fit.inc', cwd=Ppath)
         super(MadDump, self).link_files_in_SubProcess(Ppath)
     
 
@@ -143,6 +155,8 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
     def finalize(self,*args, **opts):
 
         self.create_fit2D_card()
+        self.create_bremsstrahlung_card()
+        self.create_ebeampdffit_card()
         
         from madgraph import MG5DIR    
         filename = os.path.join(self.cmd._export_dir, 'Cards', 'me5_configuration.txt')
@@ -169,7 +183,28 @@ class MadDump(export_v4.ProcessExporterFortranMEGroup):
     def create_fit2D_card(self):
         """  """
         fit2D_card = fit2D.Fit2DCard()
-        
+
         fit2D_card.write(pjoin(self.dir_path, 'Cards', 'fit2D_card_default.dat'))
         fit2D_card.write(pjoin(self.dir_path, 'Cards', 'fit2D_card.dat'))
+        
+        
+    #===========================================================================
+    #  create the bremsstrahlung_card 
+    #===========================================================================
+    def create_bremsstrahlung_card(self):
+        """  """
+        bremsstrahlung_card = bremsstrahlung.BremsstrahlungCard()
 
+        bremsstrahlung_card.write(pjoin(self.dir_path, 'Cards', 'bremsstrahlung_card_default.dat'))
+        bremsstrahlung_card.write(pjoin(self.dir_path, 'Cards', 'bremsstrahlung_card.dat'))
+
+
+    #===========================================================================
+    #  create the bremsstrahlung_card 
+    #===========================================================================
+    def create_ebeampdffit_card(self):
+        """  """
+        ebeampdf_card = ebeampdffit.EbeamPdfFitCard()
+
+        ebeampdf_card.write(pjoin(self.dir_path, 'Cards', 'ebeampdf_fit_card_default.dat'))
+        ebeampdf_card.write(pjoin(self.dir_path, 'Cards', 'ebeampdf_fit_card.dat'))

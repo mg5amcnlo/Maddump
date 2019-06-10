@@ -17,6 +17,8 @@ import madgraph.core.helas_objects as helas_objects
 
 from madgraph.iolibs.files import cp, ln, mv
 from .. import fit2D_card as fit2D
+from .. import bremsstrahlung_card as bremss
+from .. import ebeampdffit_card as ebeampdf
 
 import re
 pjoin = os.path.join
@@ -53,15 +55,18 @@ class MadDump_interface(master_interface.MasterCmd):
   "%s" 
 
 
-    _define_options = ['darkmatter','decay_channel']
+    _define_options = ['darkmatter','decay_channel','bremsstrahlung','electron_beam_dump']
     _importevts_options = ['decay','interaction']
+    _ebeamdict = {'electron_pdf': 0, 'positron_pdf': 1, 'gamma_pdf': 2} 
+    _importevts_options += _ebeamdict.keys()
     
     # process number to distinguish the different type of matrix element
     process_tag = {'prod': 100,
                    'decay': 200,
                    'DIS': 1100,
                    'electron': 1200,
-                   'ENS': 1300}
+                   'ENS': 1300,
+                   'generic': 1400}
     
     # eff_operators_SI = {1:'SIEFFS', 2:'SIEFFF', 3:'SIEFFV'}
     # eff_operators_SD = {1:False, 2:'SDEFFF', 3:'SDEFFV'} 
@@ -70,6 +75,7 @@ class MadDump_interface(master_interface.MasterCmd):
         
         super(MadDump_interface, self).__init__(*args, **opts)
         self._dm_candidate = []
+        self._dm_bremsstrahlung = []
         self._decay_channel = []
         self._param_card = None
         self._out_dir = ''
@@ -78,6 +84,9 @@ class MadDump_interface(master_interface.MasterCmd):
         self._decay_list = []
         self._particle_todisplaced=[]
         self._multiparticles = {}
+        self._ebeamdump_mode = False
+        self._evts_inputfile_ebeampdf = [None,None,None]
+        self.n = 0
 ################################################################################        
 # DEFINE COMMAND
 ################################################################################        
@@ -93,7 +102,16 @@ class MadDump_interface(master_interface.MasterCmd):
                     # self.update_model_with_EFT()
                 else:
                     raise DMError, 'The user must supply a dark matter candidate!'
-                
+            elif args[0] == 'bremsstrahlung':
+                if len(args)==2:
+                    self._dm_bremsstrahlung = [self._curr_model.get_particle(args[1])]
+                    if not self._dm_candidate[0]:
+                        raise DMError, '%s is not a valid particle for the model.' % args[1] 
+                    # self.update_model_with_EFT()
+                else:
+                    raise DMError, 'The user must supply a dark matter candidate!'
+            elif args[0] == 'electron_beam_dump':
+                self._ebeamdump_mode = True 
             # elif args[0] == 'decay_channel':
             #     if len(args)==2:
             #         self._decay_channel = [self._curr_model.get_particle(args[1])]
@@ -153,6 +171,8 @@ class MadDump_interface(master_interface.MasterCmd):
         args = self.split_arg(line)
         # if '.lhe' or '.hepmc' not in args:
         #     raise DMError, 'Events file name must contain .lhe or .hepmc extension!'
+        
+        # decay case
         if 'decay' in args:
             args.pop(0)
             if not os.path.isfile(args[0]):
@@ -171,6 +191,8 @@ class MadDump_interface(master_interface.MasterCmd):
                         break
                     else:
                         print("Please, answer with 'y' or 'n'.")                        
+
+        # interaction case
         if 'interaction' in args:
             args.pop(0)
             if not os.path.isfile(args[0]):
@@ -190,7 +212,28 @@ class MadDump_interface(master_interface.MasterCmd):
                     else:
                         print("Please, answer with 'y' or 'n'.")
 
-                        
+        # ebeampdf case
+        for key in self._ebeamdict.keys():
+            if key in line:
+                args.pop(0)
+                if not os.path.isfile(args[0]):
+                    raise DMError, 'Invalid path: the file does not exist!'                
+                if not any( [ext in args[0] for ext in ['hepmc','lhe']]):
+                    raise DMError, 'Invalid events file name: it must contain the hepmc or lhe extension!'
+                if not self._evts_inputfile_ebeampdf[self._ebeamdict[key]]:
+                    self._evts_inputfile_ebeampdf[self._ebeamdict[key]] = args[0]
+                else:
+                    while(1):
+                        answ = raw_input ('Events file to decay already loaded. Do you want to overwrite it? [y/n] ')
+                        if answ == 'y':
+                            self._evts_inputfile_ebeampdf[self._ebeamdict[key]] = args[0]
+                            break 
+                        elif answ == 'n':
+                            break
+                        else:
+                            print("Please, answer with 'y' or 'n'.")
+                
+                
     def complete_import_events(self, text, line, begidx, endidx, formatting=True):
         "Complete the import_events command"
         
@@ -246,27 +289,35 @@ class MadDump_interface(master_interface.MasterCmd):
         #  plugin.  
         elif len(args) and args[0] == 'interaction':
             args.pop(0)            
-            if not '@' in line:
-                raise DMError, 'The user must supply a valid interaction channel!'
-            tag = re.search('(?<=@)\w+', line)
-            #print(tag.group(0))
-            excl = re.search('(?<=/)\w+', line)
-            if excl:
-                excluded = '/'+excl.group(0)
-            else:
-                excluded = ''
-            try:
-                dm_candidate = self._dm_candidate[-1]['name']
-            except:
-                raise DMError, 'Please define a valid dark matter candidate!'
-            int_proc = {'DIS' : 'process ' +  dm_candidate + ' p > ' + dm_candidate + ' p ' + excluded + ' @DIS',
+            if'@' in line:
+# raise DMError, 'The user must supply a valid interaction channel!'
+                tag = re.search('(?<=@)\w+', line)
+                # print(tag.group(0))
+                excl = re.search('(?<=/)\w+', line)
+                if excl:
+                    excluded = '/'+excl.group(0)
+                else:
+                    excluded = ''
+                try:
+                    dm_candidate = self._dm_candidate[-1]['name']
+                except:
+                    raise DMError, 'Please define a valid dark matter candidate!'
+                int_proc = {'DIS' : 'process ' +  dm_candidate + ' p > ' + dm_candidate + ' p ' + excluded + ' @DIS',
                         'electron' : 'process ' + dm_candidate + ' e- > ' + dm_candidate + ' e- ' + excluded + ' @electron',
                         'ENS' : 'work in progress'}
-            self.do_add(int_proc[tag.group(0)])
+                self.do_add(int_proc[tag.group(0)])
+            else:
+
+                int_proc = 'process '
+                for i in range(len(args)):
+                    int_proc += args[i]+' '
+                self.do_add(int_proc + ' @generic')
 
         elif len(args) and args[0] == 'displaced_decay':
             if len(args)==2:
-                self._particle_todisplaced = [self._curr_model.get_particle(args[1])]
+# multiple displaced decay                 
+#                self._particle_todisplaced = [self._curr_model.get_particle(args[1])]
+                self._particle_todisplaced.append(self._curr_model.get_particle(args[1]))
                 if not self._particle_todisplaced[0]:
                     raise DMError, '%s is not a valid particle for the model.' % args[1] 
             else:
@@ -276,6 +327,7 @@ class MadDump_interface(master_interface.MasterCmd):
             if '@' in line:
                 line = re.sub(r'''(?<=@)(%s\b)''' % '\\b|'.join(self.process_tag), 
                               lambda x: `self.process_tag[x.group(0)]`, line)
+            #self.n +=1
             return super(MadDump_interface, self).do_add(line)
 
         
@@ -326,7 +378,7 @@ class MadDump_interface(master_interface.MasterCmd):
         """ """
 
         if not self._curr_amps:
-            if not self._particle_todisplaced:
+            if (not self._particle_todisplaced) and (not self._dm_bremsstrahlung):
                 raise DMError, 'No valid process to output!'
         
         args = self.split_arg(line)
@@ -363,47 +415,97 @@ class MadDump_interface(master_interface.MasterCmd):
         cards_dir = pjoin(self._out_dir, 'Cards')
         os.makedirs(cards_dir)
         cards = ['param_card.dat','param_card_default.dat',
-                 'fit2D_card.dat','fit2D_card_default.dat']
+                 'fit2D_card.dat','fit2D_card_default.dat',
+                 'bremsstrahlung_card.dat','bremsstrahlung_card_default.dat',
+                 'ebeampdf_fit_card.dat','ebeampdf_fit_card_default.dat']
+        
         #Decay
         if self._evts_inputfile_todecay:
             evts_todecay_dir = pjoin(self._out_dir, 'Events_to_decay')
             os.makedirs(evts_todecay_dir)
             ln(self._evts_inputfile_todecay[0], evts_todecay_dir,)
             self.write_madspin_card(cards_dir,evts_todecay_dir)
-        elif self._decay_list:
+        elif (self._decay_list) and (not self._dm_bremsstrahlung) :
             decay_dir = pjoin(self._out_dir, 'Events_to_decay')
             os.makedirs(decay_dir)
             self._evts_inputfile_todecay.append('unweighted_events.lhe.gz')
             self.write_madspin_card(cards_dir,decay_dir)
-        
+
+        #Bremsstrahlung
+        if self._dm_bremsstrahlung:
+            if len(self._dm_bremsstrahlung) > 1:
+                raise DMError, 'Multiple choice for the bremsstrahlung particle is not implemented!' 
+            bremsstrahlung_dir = pjoin(self._out_dir, 'Bremsstrahlung_Events')
+            os.makedirs(bremsstrahlung_dir)
+            self.write_madspin_card(cards_dir,bremsstrahlung_dir,bremsstrahlung=True)
+            proc_characteristics = open(pjoin(bremsstrahlung_dir,'proc_characteristics'),'w')
+            proc_characteristics.write('grouped_matrix = True' + '\n')
+            
+            proc_characteristics.write('pdg_bremsstrahlung = ' + str(self._dm_bremsstrahlung[0]['pdg_code'])+'\n')
+            proc_characteristics.write('BSM_model = ' + str(self._curr_model.get('modelpath'))+'\n')
+            proc_characteristics.close()
+                    
         #interaction_only
         if self._evts_inputfile_tointeract:
             evts_tointeract_dir = pjoin(self._out_dir, 'Events_to_interact')
             os.makedirs(evts_tointeract_dir)
             ln(self._evts_inputfile_tointeract[0], evts_tointeract_dir,)
+
         #Displaced_decay
         if self._particle_todisplaced:
             evts_todisplaced_dir = pjoin(self._out_dir, 'Displaced_Decay')
             os.makedirs(evts_todisplaced_dir)
             proc_characteristics = open(pjoin(evts_todisplaced_dir,'proc_characteristics'),'w')
             proc_characteristics.write('grouped_matrix = True' + '\n')
-            proc_characteristics.write('pdg_mother = ' + str(self._particle_todisplaced[0]['pdg_code'])+'\n')
+            # proc_characteristics.write('pdg_mother = ' + str(self._particle_todisplaced[0]['pdg_code'])+'\n')
+            proc_characteristics.write('multi_displaced = ' + str(len(self._particle_todisplaced)) +'\n')            
+            i=0
+            for particle in self._particle_todisplaced:
+                proc_characteristics.write('pdg_mother' +str(i)+ ' = ' + str(particle['pdg_code'])+'\n')
+                i += 1
 #            proc_characteristics.write('pdg_daughter = '+ str(self._decay_channel[0]['pdg_code'])+'\n')
             proc_characteristics.write('BSM_model = ' + str(self._curr_model.get('modelpath'))+'\n')
             proc_characteristics.close()
             self.create_fit2D_card(cards_dir)
             if not self._curr_amps:
                 self.create_param_card(cards_dir)
+                self.create_bremsstrahlung_card(cards_dir)
+                self.create_ebeampdffit_card(cards_dir)
                 return
+
+        if self._ebeamdump_mode:
+            ebeampdf_dir = pjoin(self._out_dir, 'EbeamPdfFit')
+            os.makedirs(ebeampdf_dir)
+            for key in self._ebeamdict.keys():
+                if self._evts_inputfile_ebeampdf[self._ebeamdict[key]]:
+                    file,extension =  os.path.splitext(self._evts_inputfile_ebeampdf[self._ebeamdict[key]])
+                    ln(file+extension, ebeampdf_dir,key+extension)
             
+        # proc_production = 
+        # for proc in self._curr_proc_defs:
+        #     if proc['id']<1000:
+        #         prod_production
+
+        # for proc in self._curr_proc_defs:
+        #     print proc['id']
+        #     amps = [ amp for amp in self._curr_amps if amp.get('process')['id'] == proc['id'] ]
+        #     print len(amps)
+        # exit(-1)
+        
+        old_id = []
         for proc in self._curr_proc_defs:
-            
-            if proc['id'] < 1000:
+
+            if proc['id'] < 1000 and proc['id'] not in old_id:
+                old_id.append(proc['id'] )
                 self._curr_matrix_elements = helas_objects.HelasMultiProcess()
                 amps = [ amp for amp in self._curr_amps if amp.get('process')['id'] == proc['id'] ]
-                line = pjoin(self._out_dir,'production')
+                if not self._ebeamdump_mode:
+                    line = pjoin(self._out_dir,'production')
+                else:
+                    line = 'maddump %s' % pjoin(self._out_dir, 'production') 
                 with misc.TMP_variable(self, ['_curr_proc_defs','_curr_amps','_done_export'], [proc,amps,None]):                    
                     super(MadDump_interface, self).do_output(line)
+                    
                 # check whether the param_card is already in the common Cards dir
                 # otherwise it is copied from the current process 
                 if cards[0] not in os.listdir(cards_dir):
@@ -412,6 +514,15 @@ class MadDump_interface(master_interface.MasterCmd):
                         cp(pjoin(pcard, cards[i]), cards_dir)
                         os.remove(pjoin(pcard, cards[i]))
                         ln(pjoin(cards_dir, cards[i]), pcard, ) 
+
+                # check whether the ebeampdf_fit_card is already in the common Cards dir
+                # otherwise it is copied from the current process 
+                if cards[6] not in os.listdir(cards_dir):
+                    for i in range(6,8):
+                        pcard = pjoin(self._out_dir,'production', 'Cards')
+                        cp(pjoin(pcard, cards[i]), cards_dir)
+                        # os.remove(pjoin(pcard, cards[i]))
+                        # ln(pjoin(cards_dir, cards[i]), pcard, ) 
 
 
                 # put the run_card in the common Cards dir and create a symbolic link
@@ -426,10 +537,10 @@ class MadDump_interface(master_interface.MasterCmd):
                     os.remove(pjoin(pcards_dir, 'run_card_default.dat'))
                 except OSError:
                     pass
-                for name in ['run_card.dat', 'run_card_default']:
+                for name in ['run_card.dat', 'run_card_default.dat']:
                     ln(pjoin(cards_dir, name), pcards_dir)
                     
-            else:
+            elif proc['id'] not in old_id:
                 self._curr_matrix_elements = helas_objects.HelasMultiProcess()
                 processes_list = self.process_tag.keys()
                 for process in processes_list:
@@ -449,7 +560,12 @@ class MadDump_interface(master_interface.MasterCmd):
                 if cards[2] not in os.listdir(cards_dir):
                     for i in range(2,4):
                         cp(pjoin(current_dir, 'Cards', cards[i]), pjoin(cards_dir, cards[i]))
-
+                if cards[4] not in os.listdir(cards_dir):
+                    for i in range(4,6):
+                        cp(pjoin(current_dir, 'Cards', cards[i]), pjoin(cards_dir, cards[i]))
+                if cards[6] not in os.listdir(cards_dir):
+                    for i in range(6,8):
+                        cp(pjoin(current_dir, 'Cards', cards[i]), pjoin(cards_dir, cards[i]))
                 try:
                     for card in cards:
                         os.remove(pjoin(current_dir,'Cards', card))
@@ -458,7 +574,24 @@ class MadDump_interface(master_interface.MasterCmd):
                 # os.symlink(os.path.join('production',paramcard_path), os.path.join(current_dir, paramcard_path))
                 for card in cards:
                     ln(pjoin(cards_dir, card),  pjoin(current_dir,'Cards'))
+                    
+                if proc['id'] == 1400:
+                    # put the run_card in the common Cards dir and create a symbolic link
+                    # in the production/Cards dir
+                    pcards_dir = pjoin(self._out_dir, 'interaction_generic', 'Cards') 
+                    cp(pjoin(pcards_dir, 'run_card.dat'), pjoin(cards_dir))
+                    cp(pjoin(pcards_dir, 'run_card_default.dat'), pjoin(cards_dir))
                 
+                    try:
+                    #for card in cards: #remove this pointless loop
+                        os.remove(pjoin(pcards_dir, 'run_card.dat'))
+                        os.remove(pjoin(pcards_dir, 'run_card_default.dat'))
+                    except OSError:
+                        pass
+                    for name in ['run_card.dat', 'run_card_default.dat']:
+                        ln(pjoin(cards_dir, name), pcards_dir)
+                    
+
     # def find_output_type(self, path):
     #     if os.path.exists(pjoin(path,'matrix_elements','proc_characteristics')):
     #         return 'maddm'
@@ -501,11 +634,13 @@ class MadDump_interface(master_interface.MasterCmd):
         #         return
 
 
-    def write_madspin_card(self,cpath,epath):
+    def write_madspin_card(self,cpath,epath,bremsstrahlung=False):
         """ """
-        
-        evts_file = pjoin(epath,os.path.basename(self._evts_inputfile_todecay[0]))
-        
+        if bremsstrahlung:
+            evts_file = pjoin(epath,os.path.basename('bremsstrahlung.hepmc'))
+        else:
+            evts_file = pjoin(epath,os.path.basename(self._evts_inputfile_todecay[0]))
+            
         out = open(pjoin(cpath,'madspin_card.dat'),'w')
         s = 'set spinmode none\nset cross_section {0:1.0}\nset new_wgt BR\n'
         out.write(s)
@@ -525,7 +660,7 @@ class MadDump_interface(master_interface.MasterCmd):
                     s+=str(pid)+' '
                 s+='\n'
                 out.write(s)
-                
+
         for decay in self._decay_list:
             out.write('decay '+ decay + '\n')
         out.write('launch\n')
@@ -540,6 +675,26 @@ class MadDump_interface(master_interface.MasterCmd):
         
         fit2D_card.write(pjoin(path, 'fit2D_card_default.dat'))
         fit2D_card.write(pjoin(path, 'fit2D_card.dat'))
+
+    #===========================================================================
+    #  create the bremsstrahlung_card 
+    #===========================================================================
+    def create_bremsstrahlung_card(self,path):
+        """  """
+        bremss_card = bremss.BremsstrahlungCard()
+        
+        bremss_card.write(pjoin(path, 'bremsstrahlung_card_default.dat'))
+        bremss_card.write(pjoin(path, 'bremsstrahlung_card.dat'))
+
+    #===========================================================================
+    #  create the ebeampdffit_card 
+    #===========================================================================
+    def create_ebeampdffit_card(self,path):
+        """  """
+        ebeampdf_card = ebeampdf.EbeamPdfFitCard()
+        
+        ebeampdf_card.write(pjoin(path, 'ebeampdf_fit_card_default.dat'))
+        ebeampdf_card.write(pjoin(path, 'ebeampdf_fit_card.dat'))
 
 #TODO for decay_displaced
 

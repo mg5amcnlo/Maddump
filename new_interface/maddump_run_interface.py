@@ -13,12 +13,16 @@ import madgraph.iolibs.save_load_object as save_load_object
 import MadSpin.interface_madspin as interface_madspin
 import lhe_to_pythia_hadron_std as lheToPythia
 import displaced_decay as displ_decay
+from .. import proton_bremsstrahlung as prt_bremss
+from .. import ebeampdf_fit as ebeampdf
 
 pjoin = os.path.join
 logger = logging.getLogger('madgraph.plugin.maddump')
 
 from .. import fit2D_card as fit2D
-from .. import  meshfitter2D as meshfitter
+from .. import bremsstrahlung_card as bremss
+from .. import ebeampdffit_card as ebeampdf_card
+from .. import meshfitter2D as meshfitter
 
 # LAUNCH PROGRAM
 _launch_usage = "launch [DIRPATH] [options]\n" + \
@@ -179,11 +183,19 @@ class MADDUMPRunCmd(cmd.CmdShell):
         (options, args) = _launch_parser.parse_args(args)
         #self.check_launch(args, options)
         options = options.__dict__
-                    
-        interaction_dir_all = ['interaction_DIS','interaction_electron','interaction_ENS']
+
+        # some initializations
+        self.displaced = False
+        self.bremss = False
+
+        interaction_dir_all = ['interaction_DIS','interaction_electron','interaction_ENS','interaction_generic']
         listdir = subprocess.check_output("ls %s"%self.dir_path,shell=True).split()
 
-        self.displaced = False
+        self.electron_beam_mode = False
+        if 'EbeamPdfFit' in listdir:
+            self.electron_beam_mode = True
+
+        
         if 'production' in listdir:
             if 'Events_to_decay' in listdir:
                 self.DMmode='production_decay'
@@ -198,8 +210,15 @@ class MADDUMPRunCmd(cmd.CmdShell):
                 self.DMmode = 'decay_interaction'
         elif 'Events_to_interact' in listdir:
             self.DMmode = 'interaction_only'
+        elif 'Bremsstrahlung_Events' in listdir:
+            self.bremss = True
+            if 'Displaced_Decay' in listdir:
+                self.DMmode='bremsstrahlung_displaced'
+                self.displaced = True
+            else:
+                self.DMmode = 'bremsstrahlung_interaction'
         else:
-            print('Corrupted directory: no production/Events_to_decay/Events_to_interact directory ')
+            print('Corrupted directory: no production/Events_to_decay/Events_to_interact/Bremmstrahlung_Events directory ')
             exit(-1)
             
         self.interaction_dir = []
@@ -213,6 +232,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
             i = 1
             while os.path.exists(pjoin(self.dir_path, 'production', 'Events', 'run_%02d' %i)) or\
                   os.path.exists(pjoin(self.dir_path, 'Events_to_decay', 'Events', 'run_%02d' %i)) or \
+                  os.path.exists(pjoin(self.dir_path, 'Bremsstrahlung_Events', 'Events', 'run_%02d' %i)) or \
                   os.path.exists(pjoin(self.dir_path, 'Events_to_interact', 'Events', 'run_%02d' %i)) or \
                   any([os.path.exists(pjoin(self.dir_path, dir, 'Events', 'run_%02d' %i)) for dir in self.interaction_dir]) or \
                   os.path.exists(pjoin(self.dir_path, 'Displaced_Decay', 'Events', 'run_%02d' %i)):
@@ -224,14 +244,30 @@ class MADDUMPRunCmd(cmd.CmdShell):
 
         if self.displaced:
             self.proc_characteristics = self.get_proc_characteristics(pjoin(self.dir_path,'Displaced_Decay','proc_characteristics'))
-            
+
         self.ask_run_configuration(mode=[], force=force)
         self.run_launch()
         
     @common_run.scanparamcardhandling(result_path=lambda obj:  pjoin(obj.me_dir, 'scan_%s.txt'))
     def run_launch(self):
+
+        if self.electron_beam_mode:
+            cpath = pjoin(self.dir_path, 'Cards')
+            ebeam_card = ebeampdf_card.EbeamPdfFitCard(pjoin(cpath, 'ebeampdf_fit_card.dat'))
+            if ebeam_card['ebeam_dofit']:
+                self.do_ebeampdffit()
         
         if self.DMmode in ['production_interaction','production_decay']:
+            dir = 'production'
+            cpath = pjoin(self.dir_path, dir, 'Cards')
+
+            fit2D_card = fit2D.Fit2DCard(pjoin(cpath, 'fit2D_card.dat'))
+            fit2D_card.write_include_file(pjoin(self.dir_path, dir, 'Source'))           
+            brems_card = bremss.BremsstrahlungCard(pjoin(cpath, 'bremsstrahlung_card.dat'))
+            brems_card.write_include_file(pjoin(self.dir_path, dir, 'Source'))           
+            ebeam_card = ebeampdf_card.EbeamPdfFitCard(pjoin(cpath, 'ebeampdf_fit_card.dat'))
+            ebeam_card.write_include_file(pjoin(self.dir_path, dir, 'Source'))           
+
             misc.call(['./bin/generate_events', self.run_name, '-f'],
                       cwd=pjoin(self.dir_path, 'production'))
             evts_path = pjoin(self.dir_path, 'production', 'Events', self.run_name, 'unweighted_events.lhe.gz') 
@@ -281,37 +317,83 @@ class MADDUMPRunCmd(cmd.CmdShell):
                 files.mv(decayed_file,pjoin(evt_dir,'unweighted_events.lhe.gz'))
             except:
                 logger.error('MadSpin fails to create any decayed file.')
-
-            # if self.DMmode == 'decay_displaced':
-            #     madspin_cmd.update_status = lambda *x,**opt: self.update_status(*x, level='madspin',**opt)
-            #     self.update_madspin_evtfile(pjoin(self.me_dir,'Cards'),pjoin(evt_dir,'unweighted_events.lhe.gz'))
-            #     path = pjoin(self.me_dir, 'Cards', 'madspin_card_displ.dat')
-
-            #     madspin_cmd.import_command_file(path)
-            #     new_run = '%s_displaced_%i' % (self.run_name,i)
-            #     evt_dir = pjoin(decay_dir, 'Events',new_run)
                 
-            #     os.makedirs(evt_dir)
-            #     listdir = subprocess.check_output("ls %s"%decay_dir,shell=True).split()
-                
-            #     decayed_file = pjoin(decay_dir,os.path.basename(evts_file)+'_decayed.lhe.gz')
-            #     try:
-            #         files.mv(decayed_file,pjoin(evt_dir,'unweighted_events.lhe.gz'))
-            #     except:
-            #         logger.error('MadSpin fails to create any decayed file.')
-                
-            # current_file = evts_file.replace('.lhe', '_decayed.lhe')
-            # new_file = pjoin(evt_dir, new_run, )
-            # if not os.path.exists(current_file):
-            #     if os.path.exists(current_file+'.gz'):
-            #         current_file += '.gz'
-            #         new_file += '.gz'
-            #     elif current_file.endswith('.gz') and os.path.exists(current_file[:-3]):
-            #         current_file = current_file[:-3]
-            #         new_file = new_file[:-3]
-            #     else:
+            evts_path = pjoin(evt_dir,'unweighted_events.lhe.gz')
 
-            #         return
+        if self.DMmode in ['bremsstrahlung_interaction','bremsstrahlung_displaced']:
+
+            proc_characteristics = self.get_proc_characteristics(pjoin(self.dir_path,'Bremsstrahlung_Events','proc_characteristics'))
+
+            cpath = pjoin(self.dir_path, 'Cards')
+
+            #bremsstrahlung_card = fit2D.Fit2DCard(pjoin(cpath, 'bremsstrahlung_card.dat'))
+            bremsstrahlung_card = bremss.BremsstrahlungCard(pjoin(cpath, 'bremsstrahlung_card.dat'))
+            #bremsstrahlung_card.write_include_file(pjoin(self.dir_path, dir, 'Source'))           
+
+            bremsstrahlung_dir = pjoin(self.dir_path,'Bremsstrahlung_Events')
+            #listdir = subprocess.check_output("ls %s"%decay_dir,shell=True).split()
+            # for file in listdir:
+            #     if any( [ext in file for ext in ['hepmc','lhe']]):
+            #         evts_file = file.replace('.hepmc','')
+            #         evts_file = evts_file.replace('.lhe','')
+            #         evts_file = evts_file.replace('.gz','')
+
+            try:
+                os.makedirs(pjoin(decay_dir,'Events'))
+            except:
+                pass
+            
+            with misc.chdir(bremsstrahlung_dir):
+                hist2D_z_pt2 =  prt_bremss.fit2D_z_pt2(int(proc_characteristics['pdg_bremsstrahlung']))
+                hist2D_z_pt2.do_fit()
+                hist2D_z_pt2.do_unweight(int(bremsstrahlung_card["ngen"]))
+
+            label = '#bremsstrahlung_norm'
+            self.results[label] = hist2D_z_pt2.flux_norm
+
+            return
+            
+            # bremsstrahalung_file = 
+            # try:
+            #     files.mv(decayed_file,pjoin(evt_dir,'unweighted_events.lhe.gz'))
+            # except:
+            #     logger.error('MadSpin fails to create any decayed file.')
+            # file.
+    
+            madspin_cmd = interface_madspin.MadSpinInterface()
+            # pass current options to the interface
+            madspin_cmd.mg5cmd.options.update(self.options)
+            madspin_cmd.cluster = None #self.cluster
+        
+            madspin_cmd.update_status = lambda *x,**opt: self.update_status(*x, level='madspin',**opt)
+            path = pjoin(self.me_dir, 'Cards', 'madspin_card.dat')
+
+            madspin_cmd.import_command_file(path)
+
+            # create a new run_name directory for this output
+            i = 1
+            while os.path.exists(pjoin(bremsstrahlung_dir,'Events', '%s_decayed_%i' % (self.run_name,i))):
+                i+=1
+            new_run = '%s_decayed_%i' % (self.run_name,i)
+            evt_dir = pjoin(bremsstrahlung_dir, 'Events',new_run)
+
+            os.makedirs(evt_dir)
+            listdir = subprocess.check_output("ls %s"%bremsstrahlung_dir,shell=True).split()
+
+            decayed_file = pjoin(bremsstrahlung_dir,'bremsstrahlung'+'_decayed.lhe.gz')
+            
+            try:
+                files.mv(decayed_file,pjoin(evt_dir,'unweighted_events.lhe.gz'))
+            except:
+                logger.error('MadSpin fails to create any decayed file.')
+
+            try:
+                output_tp = ['cell_fortran_z_pt2.dat','mesh2D.png']
+                for file in output_tp:
+                    files.mv(pjoin(bremsstrahlung_dir,file), pjoin(evt_dir,file))
+            except:
+                pass
+
             evts_path = pjoin(evt_dir,'unweighted_events.lhe.gz')
             
         if self.DMmode == 'interaction_only':
@@ -333,9 +415,14 @@ class MADDUMPRunCmd(cmd.CmdShell):
             run_dir_displ = pjoin(displ_dir,'Events',self.run_name)
             os.makedirs(run_dir_displ)
             files.ln(evts_path, run_dir_displ)
+            ndecays = int(self.proc_characteristics['multi_displaced'])
+            pdg_mothers=[]
+            for i in range(ndecays):
+                pdg_mothers.append(int(self.proc_characteristics['pdg_mother'+str(i)])) 
             displacement = displ_decay.displaced_decay(pjoin(run_dir_displ,'unweighted_events.lhe.gz'),
                                             pjoin(self.dir_path,'Cards','param_card.dat'),
-                                            int(self.proc_characteristics['pdg_mother']))
+                                                       pdg_mothers)
+#                                            int(self.proc_characteristics['pdg_mother']))
 #                                            int(self.proc_characteristics['pdg_daughter'])) 
             displacement.finalize_output(pjoin(run_dir_displ,'evt_displaced.lhe'))
             #pythialhe_displ = lheToPythia.LHEtoPYTHIAHadronSTD(pjoin(run_dir_displ,'unweighted_events.lhe.gz'),target=None,mode='only_finalstates')
@@ -350,7 +437,11 @@ class MADDUMPRunCmd(cmd.CmdShell):
 
             fit2D_card = fit2D.Fit2DCard(pjoin(cpath, 'fit2D_card.dat'))
             fit2D_card.write_include_file(pjoin(self.dir_path, dir, 'Source'))           
-            
+            brems_card = bremss.BremsstrahlungCard(pjoin(cpath, 'bremsstrahlung_card.dat'))
+            brems_card.write_include_file(pjoin(self.dir_path, dir, 'Source'))           
+            ebeam_card = ebeampdf_card.EbeamPdfFitCard(pjoin(cpath, 'ebeampdf_fit_card.dat'))
+            ebeam_card.write_include_file(pjoin(self.dir_path, dir, 'Source'))           
+             
             try:
                 os.remove('unweighted_events.lhe.gz')
             except OSError:
@@ -389,14 +480,19 @@ class MADDUMPRunCmd(cmd.CmdShell):
 
             # store results
             results = self.load_results_db(pjoin(self.dir_path,dir),self.run_name)
-            label = 'nevts_' + interaction_channel
+            if interaction_channel:
+                label = 'nevts_' + interaction_channel
+            else:
+                label = 'nevts_interaction'
+                
             self.results[label] = results['cross']
 
             # apply channel tag to events file name
-            try:
-                files.mv(pjoin(run_dir,'unweighted_events.lhe.gz'), pjoin(run_dir,'unweighted_events'+'_'+interaction_channel+'.lhe.gz'))
-            except:
-                raise Exception, 'Error: events file not generated!'
+            if interaction_channel:
+                try:
+                    files.mv(pjoin(run_dir,'unweighted_events.lhe.gz'), pjoin(run_dir,'unweighted_events'+'_'+interaction_channel+'.lhe.gz'))
+                except:
+                    raise Exception, 'Error: events file not generated!'
             
             # for DIS, generate the LHE events to be showered by Pythia
             #if interaction_channel == 'DIS': 
@@ -440,14 +536,22 @@ class MADDUMPRunCmd(cmd.CmdShell):
     def ask_run_configuration(self, mode=None, force=False):
         """ask the question about card edition """
         
-        if self.DMmode == 'production_interaction': 
+        if self.DMmode in ['production_interaction','interaction_only']: 
             cards = ['param_card.dat','fit2D_card.dat','run_card.dat']
         elif self.DMmode == 'production_decay':
             cards = ['param_card.dat','run_card.dat','madspin_card.dat']
-        elif self.DMmode in ['decay_interaction','interaction_only']:
+        elif self.DMmode in ['decay_interaction']:
             cards = ['param_card.dat','fit2D_card.dat','madspin_card.dat']
         elif self.DMmode == 'decay_displaced':
             cards = ['param_card.dat','madspin_card.dat']
+        elif self.DMmode == 'bremsstrahlung_interaction':
+            cards = ['param_card.dat','bremsstrahlung_card.dat','madspin_card.dat','fit2D_card.dat']
+        elif self.DMmode == 'bremsstrahlung_displaced':
+            cards = ['param_card.dat','bremsstrahlung_card.dat','madspin_card.dat']
+
+        if self.electron_beam_mode:
+            cards += ['ebeampdf_fit_card.dat']
+
             
         self.ask_edit_cards(cards,plot=False)
 
@@ -584,11 +688,29 @@ class MADDUMPRunCmd(cmd.CmdShell):
     #     elif not os.path.isfile(args[0]):
     #         raise self.InvalidCmd('No default path for this file')
 
+
+
+    def do_ebeampdffit(self):
+        ebeampdf_dir = pjoin(self.dir_path,'EbeamPdfFit')
+        listdir = subprocess.check_output("ls %s"%ebeampdf_dir,shell=True).split()
+        labels = ['electron_pdf','positron_pdf','gamma_pdf']
+        for infile in listdir:
+            label,ext = os.path.splitext(infile)
+            print label
+            if  label in labels:
+                print 'do fit: it takes some minutes '
+                with misc.chdir(ebeampdf_dir):
+                    hist2D_ebeamfit =  ebeampdf.fit2D_ebeampdf(infile,label)
+                    hist2D_ebeamfit.do_fit()
+    
+
+
+
     
 class MadDumpSelector(common_run.AskforEditCard):
     """ """
 
-    to_init_card = ['param', 'run', 'fit2D', 'madspin']
+    to_init_card = ['param', 'run', 'fit2D', 'madspin', 'bremsstrahlung', 'ebeampdf_fit']
 
     def __init__(self, question, *args, **opts):
         self.me_dir = opts['mother_interface'].dir_path        
@@ -628,6 +750,39 @@ class MadDumpSelector(common_run.AskforEditCard):
         self.maddump_set = list(set(self.maddump_def.keys() + self.maddump_def.hidden_param))
         return self.maddump.keys() 
 
+    def init_bremsstrahlung(self, path):
+        """ initialize cards for the reading/writing of maddump"""
+
+        self.maddump_bremss_def = bremss.BremsstrahlungCard(self.paths['bremsstrahlung_default'], consistency=False)
+        try:
+            self.maddump_bremss = bremss.BremsstrahlungCard(self.paths['bremsstrahlung'], consistency=False)
+        except Exception as e:
+            logger.error('Current bremsstrahlung_card is not valid. We are going to use the default one.')
+            logger.error('problem detected: %s' % e) 
+            files.cp(self.paths['maddump_default'], 'Cards')
+            self.maddump_bremss = bremsstrahlung.BremsstrahlungCard('Cards')
+            
+        self.maddump_bremss_set = list(set(self.maddump_bremss_def.keys() + self.maddump_bremss_def.hidden_param))
+        return self.maddump_bremss.keys() 
+
+
+    def init_ebeampdf_fit(self, path):
+        """ initialize cards for the reading/writing of maddump"""
+
+        self.maddump_ebeam_def = ebeampdf_card.EbeamPdfFitCard(self.paths['ebeampdf_fit_default'], consistency=False)
+        try:
+            self.maddump_ebeam = ebeampdf_card.EbeamPdfFitCard(self.paths['ebeampdf_fit'], consistency=False)
+        except Exception as e:
+            logger.error('Current ebeampdf_fit_card is not valid. We are going to use the default one.')
+            logger.error('problem detected: %s' % e) 
+            files.cp(self.paths['maddump_default'], 'Cards')
+            self.maddump_ebeam = ebeampdf_card.EbeamPdfFitCard('Cards')
+            
+        self.maddump_ebeam_set = list(set(self.maddump_ebeam_def.keys() + self.maddump_ebeam_def.hidden_param))
+        return self.maddump_ebeam.keys() 
+
+
+    
     # def get_cardcmd(self):
     #     """ return the list of command that need to be run to have a consistent 
     #         set of cards with the switch value choosen """
@@ -645,6 +800,10 @@ class MadDumpSelector(common_run.AskforEditCard):
         self.paths['fit2D'] = pjoin(self.me_dir,'Cards','fit2D_card.dat')
         self.paths['fit2D_default'] = pjoin(self.me_dir,'Cards','fit2D_card_default.dat')
         self.paths['madspin'] = pjoin(self.me_dir,'Cards','madspin_card.dat')
+        self.paths['bremsstrahlung'] = pjoin(self.me_dir,'Cards','bremsstrahlung_card.dat')
+        self.paths['bremsstrahlung_default'] = pjoin(self.me_dir,'Cards','bremsstrahlung_card_default.dat')
+        self.paths['ebeampdf_fit'] = pjoin(self.me_dir,'Cards','ebeampdf_fit_card.dat')
+        self.paths['ebeampdf_fit_default'] = pjoin(self.me_dir,'Cards','ebeampdf_fit_card_default.dat')
         
       
     def do_update(self, line, timer=0):
@@ -678,7 +837,24 @@ class MadDumpSelector(common_run.AskforEditCard):
                 logger.error('Current fit2D_card is not valid. We are going to use the default one.')
                 logger.error('problem detected: %s' % e)
                 logger.error('Please re-open the file and fix the problem.')
+                logger.warning('using the \'set\' command without opening the file will discard all your manual change') 
+        elif path == self.paths['bremsstrahlung']:
+            try:
+                self.maddump_bremss = bremss.BremsstrahlungCard(path) 
+            except Exception as e:
+                logger.error('Current bremsstrahlung_card is not valid. We are going to use the default one.')
+                logger.error('problem detected: %s' % e)
+                logger.error('Please re-open the file and fix the problem.')
                 logger.warning('using the \'set\' command without opening the file will discard all your manual change')
+        elif path == self.paths['ebeampdf_fit']:
+            try:
+                self.maddump_ebeam = ebeampdf_card.EbeamPdfFitCard(path) 
+            except Exception as e:
+                logger.error('Current ebeampdf_fit_card is not valid. We are going to use the default one.')
+                logger.error('problem detected: %s' % e)
+                logger.error('Please re-open the file and fix the problem.')
+                logger.warning('using the \'set\' command without opening the file will discard all your manual change')
+
         else:
             return super(MadDumpSelector,self).reload_card(path)
         
@@ -687,27 +863,42 @@ class MadDumpSelector(common_run.AskforEditCard):
         """ Complete the set command"""
         possibilities = super(MadDumpSelector,self).complete_set(text, line, begidx, endidx, formatting=False)
         args = self.split_arg(line[0:begidx])
-        if len(args)>1 and args[1] == 'fit2d':
+        if len(args)>1 and args[1] in ['fit2d','bremsstrahlung','ebeampdf_fit']:
             start = 2
         else:
             start = 1 
             if len(args) ==1:
                 possibilities['category of parameter (optional)'] += \
-                                self.list_completion(text, ['fit2d'], line)
+                                self.list_completion(text, ['fit2d','bremsstrahlung','ebeampdf_fit'], line)
                 
         if len(args)==start:
             correct = self.maddump_set + ['default']
-            possibilities['fit2D Card'] = self.list_completion(text, correct, line)   
+            possibilities['fit2D Card'] = self.list_completion(text, correct, line)
+            correct = self.maddump_bremss_set + ['default']
+            possibilities['bremsstrahlung Card'] = self.list_completion(text, correct, line)   
+            correct = self.maddump_ebeam_set + ['default']
+            possibilities['ebeampdf_fit Card'] = self.list_completion(text, correct, line)   
+
         elif len(args)==start+1:
             allowed_for_run = []
             if args[-1].lower() in self.maddump.allowed_value:
                 allowed_for_run = self.maddump.allowed_value[args[-1].lower()]
                 if '*' in allowed_for_run: 
                     allowed_for_run.remove('*')
+            elif args[-1].lower() in self.maddump_bremss.allowed_value:
+                allowed_for_run = self.maddump_bremss.allowed_value[args[-1].lower()]
+                if '*' in allowed_for_run: 
+                    allowed_for_run.remove('*')
+            elif args[-1].lower() in self.maddump_ebeam.allowed_value:
+                allowed_for_run = self.maddump_ebeam.allowed_value[args[-1].lower()]
+                if '*' in allowed_for_run: 
+                    allowed_for_run.remove('*')
             elif isinstance(self.maddump[args[-1]], bool):
                 allowed_for_run = ['True', 'False']
             opts = [str(i) for i in  allowed_for_run]
             possibilities['fit2D Card'] = self.list_completion(text, opts)
+            possibilities['bremsstrahlung Card'] = self.list_completion(text, opts)
+            possibilities['ebeampdf_fit Card'] = self.list_completion(text, opts)
         
         return self.deal_multiple_categories(possibilities, formatting)
 
@@ -730,6 +921,18 @@ class MadDumpSelector(common_run.AskforEditCard):
             if args[1] == 'default':
                 logging.info('replace %s by the default card' % args[0])
                 self.maddump = fit2D.Fit2DCard(self.paths['fit2D_default'])
+        elif args[0] in ['bremsstrahlung']:
+            mode = 'bremsstrahlung'
+            start = 1
+            if args[1] == 'default':
+                logging.info('replace %s by the default card' % args[0])
+                self.maddump_bremss = bremsstrahlung.BremsstrahlungCard(self.paths['bremsstrahlung_default'])                
+        elif args[0] in ['ebeampdf_fit']:
+            mode = 'ebeampdf_fit'
+            start = 1
+            if args[1] == 'default':
+                logging.info('replace %s by the default card' % args[0])
+                self.maddump_ebeam = ebeampdf_card.EbeampdfFitCard(self.paths['ebeampdf_fit_default'])                
         else:
             start = 0
             mode = 'unknow'
@@ -746,6 +949,33 @@ class MadDumpSelector(common_run.AskforEditCard):
                     self.setfit2D(args[start], val)
                 else:
                     self.setfit2D(args[start], args[start+1:][0])
+
+        elif args[start] in self.maddump_bremss_set:
+            if args[start+1] == 'default':
+                default = self.maddump_bremss_def[args[start]]
+                self.setbremsstrahlung(args[start], default)
+            else:
+                if args[start] in self.maddump_bremss.list_parameter or \
+                       args[start] in self.maddump_bremss.dict_parameter:
+                    val = ' '.join(args[start+1:])
+                    val = val.split('#')[0]
+                    self.setbremsstrahlung(args[start], val)
+                else:
+                    self.setbremsstrahlung(args[start], args[start+1:][0])
+
+        elif args[start] in self.maddump_ebeam_set:
+            if args[start+1] == 'default':
+                default = self.maddump_ebeam_def[args[start]]
+                self.setebeampdf_fit(args[start], default)
+            else:
+                if args[start] in self.maddump_ebeam.list_parameter or \
+                       args[start] in self.maddump_ebeam.dict_parameter:
+                    val = ' '.join(args[start+1:])
+                    val = val.split('#')[0]
+                    self.setebeampdf_fit(args[start], val)
+                else:
+                    self.setebeampdf_fit(args[start], args[start+1:][0])
+                    
         elif mode == 'unknow':
             return super(MadDumpSelector, self).do_set(line)
         else:
@@ -754,7 +984,19 @@ class MadDumpSelector(common_run.AskforEditCard):
         
         #write the new file
         self.maddump.write(self.paths['fit2D'])
+        self.maddump_bremss.write(self.paths['bremsstrahlung'])
+        self.maddump_ebeam.write(self.paths['ebeampdf_fit'])
+        
         
     def setfit2D(self, name, value, loglevel=20):
         logger.log(loglevel,'modify parameter %s of the fit2D_card.dat to %s' % (name, value), '$MG:BOLD')
+
         self.maddump.set(name, value, user=True)
+
+    def setbremsstrahlung(self, name, value, loglevel=20):
+        logger.log(loglevel,'modify parameter %s of the bremsstrahlung_card.dat to %s' % (name, value), '$MG:BOLD')
+        self.maddump_bremss.set(name, value, user=True)
+
+    def setebeampdf_fit(self, name, value, loglevel=20):
+        logger.log(loglevel,'modify parameter %s of the ebeampdf_fit_card.dat to %s' % (name, value), '$MG:BOLD')
+        self.maddump_ebeam.set(name, value, user=True)

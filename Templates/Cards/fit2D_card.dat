@@ -38,16 +38,16 @@
    %(d_target_detector)s =  d_target_detector ! Distance between the target and the detector in cm 
    %(z_average)s    = z_average ! average atomic number
    %(a_average)s    = a_average ! average mass number
+   %(depth)s     =  depth ! detector depth along the beam axis
 
 #*********************************************************************
 # Cuts on the detector shape 
 #*********************************************************************
 
 # naive off-axis configuration (and radial cylidrical configuration)  
-     %(off_axis)s   =  off_axis ! select off-axis mode 
-     %(thetac)s         =  thetac ! angular coordinate  of the cone wrt the beam axis in rad
-     %(theta_aperture)s  =  theta_aperture ! angular aperture of the cone in rad
-     %(off_axis_depth)s  =  off_axis_depth ! cone depth in cm 
+     %(off_axis)s   =  off_axis ! select off-axis mode
+     %(yc)s         =  yc ! distance of the center of the first circle from the beam axis
+     %(radius)s     =  radius ! radius of the first circle
 
 
 # on-axis configuration (with sides parallel to the beam axis) 
@@ -58,7 +58,6 @@
      %(x_side)s     =  x_side ! in cm
      %(y_side)s     =  y_side ! in cm 
 
-     %(depth)s     =  depth ! both for cylinder and parallepiped
 
      %(ncores)s     =  ncores ! number of cores to be used by the fit routine. It must be a power of two: 2,4,8,...
      %(testplot)s   =  testplot ! if True, store the table of the original data entering the detector ('in_DM.dat')  and the plot of the 2D fitted mesh ('mesh2D.png') in the corresponding /Events/XXX run directory

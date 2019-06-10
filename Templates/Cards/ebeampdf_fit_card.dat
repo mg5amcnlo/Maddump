@@ -1,0 +1,32 @@
+#*********************************************************************
+#                            MadDump                                 *
+#                                                                    *
+#                        bremsstrahlung_card.dat                     *
+#                                                                    *
+#  This file is used to set the parameters for the                   *
+#  ebeampdf fit                                                      *
+#                                                                    *
+#  Some notation/conventions:                                        *
+#                                                                    *
+#   Lines starting with a '# ' are info or comments                  *
+#                                                                    *
+#   mind the format:   value    = variable     ! comment             *
+#                                                                    *
+#*********************************************************************
+#
+#**************************                                                 
+# EbeamPdfFit Parameters
+#**************************                                               
+   %(ebeam_dofit)s = ebeam_dofit ! Turn on/off ebeampdf fit
+   %(flux_norm_electron)s = flux_norm_electron ! Overall flux normalization for electron
+   %(flux_norm_positron)s = flux_norm_positron ! Overall flux normalization for positron
+   %(flux_norm_gamma)s = flux_norm_gamma ! Overall flux normalization for gamma
+   %(ebeam_ncores)s       =  ebeam_ncores ! number od cores for the fit 
+   %(ebeam_testplot)s   =  ebeam_testplot ! if True store the 2D fitted mesh
+   %(ebeam_nexit)s       =  ebeam_nexit ! exit condition in the fit procedure   
+
+
+#*********************************************************************
+# Technical parameters 
+#*********************************************************************
+   %(ebeampdf)s        =  ebeampdf ! turn on/off ebeampdf

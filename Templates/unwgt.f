@@ -298,6 +298,7 @@ c      data ncolalt/maxamps*0/
       include 'symswap.inc'
 
       include 'fit2D.inc'
+      include 'ebeampdf_fit.inc'
 C-----
 C  BEGIN CODE
 C-----
@@ -430,8 +431,12 @@ c     Pick a theta value at fixed E distributed according to the 2D DM
 c     histograms flux. The azimuthal angle is set at random. 
             rv(1)=ran1(iseed+1)
             rv(2)=ran1(iseed+1)
-            call picktheta(E,rv,theta)
-
+            if (.not. ebeampdf) then
+               call picktheta(E,rv,theta)
+            else
+               call ebeam_picktheta(E,rv,theta,jpart(1,isym(1,jsym)))
+            endif
+            
             rv(1)=ran1(iseed+2)
             rv(2)=ran1(iseed+2)
             if(cylinder) then
@@ -616,7 +621,7 @@ c     Store weight for event
       double precision theta_min,theta_max
       logical fstcall
       data fstcall/.true./
-      save fstcall,eps
+      save fstcall,eps,theta_min,theta_max
       double precision pi
       parameter (pi=3.1415926d0)
 
@@ -743,25 +748,204 @@ c     once a cell is selected, a value of theta is taken uniformly inside it
 
       end
 
+      subroutine ebeam_picktheta(E,rv,theta,pdg)
+      implicit none
+      integer pdg,maxcell,npart,nfit,ipart
+      parameter (maxcell=1000000,npart=3)
+      integer ncells(npart),n,i,j,icell(maxcell),ios,ipdg(npart),iun(npart)
+      double precision E,rv(2),theta
+      double precision cells(npart,maxcell,4),a(4),w(maxcell),wtot,Emin,Emax
+      double precision eps,Em,Ep,s
+      common/celltable/cells,ncells,ipdg
+      double precision theta_min,theta_max
+      logical fstcall
+      data fstcall/.true./
+      save fstcall,eps,theta_min,theta_max
+      double precision pi
+      parameter (pi=3.1415926d0)
+      double precision fac_eps
+      fac_eps= 1.5d0
+
+c     At the first call, read and store the cell parameters from the 
+c     cell_fortran.dat file
+      if (fstcall) then
+         ipdg = -999999999
+         
+         nfit = 0
+         open(unit=200,file='../../../../EbeamPdfFit/cell_fortran_electron_pdf.dat',status='old',
+     $        iostat=ios)
+         if (ios.gt.0) then
+            continue
+         else
+            nfit = nfit+1
+            iun(nfit) = 200
+            ipdg(nfit) = 11 
+         endif
+         open(unit=210,file='../../../../EbeamPdfFit/cell_fortran_positron_pdf.dat',status='old',
+     $        iostat=ios)
+         if (ios.gt.0) then
+            continue
+         else
+            nfit = nfit+1
+            iun(nfit) = 210
+            ipdg(nfit) = -11 
+         endif
+         open(unit=220,file='../../../../EbeamPdfFit/cell_fortran_gamma_pdf.dat',status='old',
+     $        iostat=ios)
+         if (ios.gt.0) then
+            continue
+         else
+            nfit = nfit+1
+            iun(nfit) = 220
+            ipdg(nfit) = 22 
+         endif
+
+c         open(unit=215,file='../gen_theta.stat',status='unknown')
+         
+c     The parameter eps play the role of the energy resolution.
+c     Here, it is treated as a dimensional variable. Its value
+c     should be a multiple of the smallest energy interval in the 2D
+c     cell fit (this can be reasonably thought as the precision of the fit). 
+c     This parameter is related to possible error in generation of the theta
+c     angle when no cell corresponds to the given energy value.
+c     The statistics about how many failures and the corresponding
+c     problematic energy values are printed in the file "gen_theta.stat"
+c     The user can set the multiplicative factor: incrementing it values
+c     should result in a smaller number of failures.
+         do ipart=1,nfit
+            
+            eps = 1d9
+            ncells(ipart)=1            !total number of cells
+            theta_min = pi/2d0
+            theta_max = 0d0
+c     loop over infile lines until EoF is reached
+            do 
+               read(iun(ipart),*,iostat=ios) a(1),a(2),a(3),a(4)
+               if (ios.gt.0) then
+                  write(*,*) 'Something wrong in reading cell
+     $                     table! Exit!'
+                  write(*,*) a(1),a(2),a(3),a(4)
+                  call exit(-1)
+               else if (ios.lt.0) then
+                  ncells(ipart)=ncells(ipart)-1
+                  close(iun(ipart))
+                  do i= 1,ncells(ipart)
+                     if(cells(ipart,i,3).lt.eps) eps=cells(ipart,i,3)
+                  enddo
+                  eps= eps*fac_eps
+                  exit
+               else
+                  cells(ipart,ncells(ipart),:)= a(:)
+                  ncells(ipart)=ncells(ipart)+1
+
+c     update theta_min, theta_max
+                  if(a(2).lt.theta_min) theta_min = a(2)
+                  if(a(2)+a(4).gt.theta_max) theta_max = a(2)+a(4)
+
+                  if(ncells(ipart).gt.maxcell) then
+                     write(*,*) 'Error: the number of cells of the 2D mesh exceeds
+     $                        the allowed maxcell value. Exit!'
+                     call exit(-1)
+                  endif
+               endif
+            enddo
+         enddo
+
+         fstcall = .false.
+
+      endif
+
+      do i = 1,npart
+         if (ipdg(i) == pdg) ipart=i  
+      enddo
+      
+c     look for the cells in which the energy interval [E-eps,E+eps]
+c     is contained. The case in which there is crossing with 2 cells is 
+c     considered.
+c     The weights and their normalization are computed 
+      n=1
+      w=0d0
+      wtot=0d0
+      icell = 0
+      do i=1,ncells(ipart)
+         Emin = cells(ipart,i,1)
+         Emax = cells(ipart,i,1)+cells(ipart,i,3)
+         Ep = E+eps
+         Em = E-eps
+         if (Em.ge.Emin.and.Em.lt.Emax) then
+            icell(n) = i
+            if(Ep.le.Emax) then
+               w(n) = (2d0*eps)/cells(ipart,i,3)
+               wtot = wtot + w(n)
+            else 
+               w(n) = (Emax-Em)/cells(ipart,i,3)
+               wtot = wtot + w(n)
+            endif
+            n = n+1
+         elseif (Em.le.Emin.and.Ep.gt.Emin) then
+            icell(n) = i
+            if(Ep.le.Emax) then
+               w(n) = (Ep-Emin)/cells(ipart,i,3)
+               wtot = wtot + w(n)
+            else 
+               w(n) = (Emax-Emin)/cells(ipart,i,3)
+               wtot = wtot + w(n)
+            endif
+            n = n+1
+         endif
+      enddo
+      n=n-1
+
+c     check if something went wrong      
+      if (n.eq.0) then
+         write(215,*) 'Error has occurred with the energy value: ', E
+c     in this situation, we generate flat in [theta_min,theta_max]
+         theta = theta_min + rv(1)*(theta_max-theta_min)
+         return         
+      endif
+
+c     pick a theta value according to the hit cells and their weights;
+c     once a cell is selected, a value of theta is taken uniformly inside it 
+      s=0d0
+      do j = 1,n
+         s = s + w(j)/wtot
+         if (rv(1).lt.s) then
+            theta = cells(ipart,icell(j),2) + rv(2)*cells(ipart,icell(j),4)
+            return
+         endif
+      enddo
+
+      write(*,*) 'theta not generated! Check the consistency of cell_fortran.dat grid!'
+      call exit(-1)
+      return
+      
+ 999  write(*,*) 'Cannot open input data file: cell_fortran, exit!'
+      call exit(-1)
+
+      end
+
+      
       subroutine pickphi(theta,rv,phi)
 *     extracts an azimuthal angle (phi) keeping the correlations theta-phi
 *     for the case of a rectangular hit surface and off-axis detector
       implicit none
       include 'fit2D.inc'
       real * 8 rv(2),theta,phi,x_side_on2,y_side_on2
-      real * 8 radius,phi0,phi1,phi_min,phi_max
-      real * 8 rcone_proj,yc,sphi_star,phimin,phimax
+      real * 8 evt_radius,phi0,phi1,phi_min,phi_max
+      real * 8 cphi_star,phimin,phimax
       double precision pi
       parameter (pi=3.1415926d0)
 
-
       if(off_axis) then
-         yc = d_target_detector*dsin(thetac)
-         rcone_proj =  d_target_detector*(dsin(thetac+theta_aperture)-dsin(thetac))
-         radius = d_target_detector*dsin(theta)
-         sphi_star = (radius**2-rcone_proj**2+yc**2)/(2.*radius*yc)
-         phimin= asin(sphi_star)
-         phimax=pi-phimin
+         evt_radius = d_target_detector*dsin(theta)
+         cphi_star = (evt_radius**2-radius**2+yc**2)/(2.*evt_radius*yc)
+         if (cphi_star .gt. 0d0) then
+            phimax= acos(cphi_star)
+            phimin= -phimax
+         else
+            phimin= acos(cphi_star)
+            phimax= -phimin
+         endif
          if(phimax < phimin) then
             write(*,*) 'Error: phimax < phimin'
             call exit(-1)
@@ -864,28 +1048,31 @@ c     once a cell is selected, a value of theta is taken uniformly inside it
       implicit none
       include 'fit2D.inc'
       real * 8 theta,cphi,sphi
-      real * 8 radius,tgth,z1,z2,x1,y1,x2,y2,in_z1,in_z2,x3,y3,z3
+      real * 8 tgth,z1,z2,x1,y1,x2,y2,in_z1,in_z2,x3,y3,z3
       real * 8 heaviside,theta_star,xmax,xmin,ymax,ymin 
-      real * 8 rcone_proj,yc,sphi_star
+      real * 8 cphi_star,evt_radius
+      real * 8 thetac, thetah, thetal
       z1 = d_target_detector
       z2 = z1 + depth
 
 c--- off-axis
       if(off_axis) then
-         yc = z1*dsin(thetac)
-         rcone_proj =  z1*(dsin(thetac+theta_aperture)-dsin(thetac))
-         if (dabs(theta-thetac) > theta_aperture) then
+         thetac = atan(yc/d_target_detector)
+         thetah = atan((yc+radius)/d_target_detector)
+         thetal = atan((yc-radius)/d_target_detector)
+
+         if((theta>(thetac+thetah)).or.(theta<(thetac-thetal)))  then
             max_travel_distance = 0d0
             return
          endif
-         radius = z1*dsin(theta)
-         sphi_star = (radius**2-rcone_proj**2+yc**2)/(2.*radius*yc)
+         evt_radius = z1*dsin(theta)
+         cphi_star = (evt_radius**2-radius**2+yc**2)/(2.*evt_radius*yc)
 
-         if (sphi < sphi_star ) then
+         if (cphi > dabs(cphi_star) ) then
             max_travel_distance = 0d0
             return
          else
-            max_travel_distance = off_axis_depth
+            max_travel_distance = depth
             return
          endif
       endif
@@ -972,4 +1159,5 @@ c--- parallelepiped detector
 
       end
       
+
 

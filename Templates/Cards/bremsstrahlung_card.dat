@@ -1,0 +1,33 @@
+#*********************************************************************
+#                            MadDump                                 *
+#                                                                    *
+#                        bremsstrahlung_card.dat                     *
+#                                                                    *
+#  This file is used to set the parameters for the                   *
+#  proton bremsstralung                                              *
+#                                                                    *
+#  Some notation/conventions:                                        *
+#                                                                    *
+#   Lines starting with a '# ' are info or comments                  *
+#                                                                    *
+#   mind the format:   value    = variable     ! comment             *
+#                                                                    *
+#*********************************************************************
+#
+#**************************                                                 
+# Bremsstrahlung Parameters
+#**************************                                               
+   %(pbeam)s =  pbeam ! momentum of the primary beam
+   %(npot)s =  npot ! momentum of the primary beam
+   %(z_min)s =  z_min ! minimum value for the energy fraction z
+   %(z_max)s =  z_max ! maximum value for the energy fraction z
+   %(pt2_min)s =  pt2_min ! minimum value for the squar of the transverse momentum 
+   %(pt2_max)s =  pt2_max ! maximum value for the squar of the transverse momentum 
+   %(ngen)s =  ngen ! number of events to be generated
+
+
+#*********************************************************************
+# Fit parameters (technical)
+#*********************************************************************
+   %(nfit)s        =  nfit ! number of points to be generated for the fit
+   %(nexit)s       =  nexit ! exit condition in the fit procedure

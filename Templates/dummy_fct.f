@@ -3,7 +3,8 @@
       include 'maxparticles.inc'
       include 'nexternal.inc'
       include 'run.inc'
-c      include 'genps.inc'
+      include 'ebeampdf_fit.inc'
+c     include 'genps.inc'
       double precision sjac ! jacobian. should be updated not reinit
       double precision X1   ! bjorken X. output
       double precision R    ! random value after grid transfrormation. between 0 and 1
@@ -26,6 +27,8 @@ c     global variable to set (or not)
       logical firstcall
       data firstcall/.true./
       save firstcall,Emin
+
+      include '../../Source/ebeampdf_fit_card.inc'
       
 c     default behaviour
       set_cm_rap=.false.   ! then cm_rap will be set as 
@@ -33,7 +36,8 @@ c     default behaviour
       
 c     Initialization of the dark matter pdf
 
-      if(firstcall) then
+      Emin = 0d0
+      if(firstcall.and.(.not.ebeampdf)) then
          call init_DMpdf(Emin)
          firstcall = .false.
       endif      
@@ -47,7 +51,12 @@ c     x fraction for DM pdf
       xmax= 1d0
       X1 = (xmax-xmin)*R+xmin 
 c     we add in the jacobian the DMpdf
-      sjac = sjac*(xmax-xmin)*ebeam(1)*DMpdf(X1*ebeam(1))
+
+      if (.not.ebeampdf) then
+         sjac = sjac*(xmax-xmin)*ebeam(1)*DMpdf(X1*ebeam(1))
+      else
+         sjac = sjac*(xmax-xmin)*ebeam(1)
+      endif
       
 c     Set CM rapidity for use in the rap() function
       p0=X1*ebeam(1)+ebeam(2)
@@ -72,6 +81,7 @@ c     pbeam(1) and pbeam(2) are returned to the caller
       include 'maxparticles.inc'
       include 'nexternal.inc'
       include 'run.inc'
+      include 'ebeampdf_fit.inc' 
 c      include 'genps.inc'
       double precision sjac     ! jacobian. should be updated not reinit
       double precision X(2)     ! bjorken X. output
@@ -96,6 +106,7 @@ c     global variable to set (or not)
       data firstcall/.true./
       save firstcall,Emin
       
+      include '../../Source/ebeampdf_fit_card.inc'
       
 c     default behaviour
       set_cm_rap=.false.   ! then cm_rap will be set as 
@@ -117,7 +128,12 @@ c     x fraction for DM pdf
       xmax(1)=1d0
       X(1) = (xmax(1)-xmin(1))*R(1)+xmin(1) 
 c     we add in the jacobian the DMpdf
-      sjac = sjac*(xmax(1)-xmin(1))*ebeam(1)*DMpdf(X(1)*ebeam(1))
+
+      if (.not.ebeampdf) then
+         sjac = sjac*(xmax(1)-xmin(1))*ebeam(1)*DMpdf(X(1)*ebeam(1))
+      else
+         sjac = sjac*(xmax(1)-xmin(1))*ebeam(1)
+      endif
 
 c     x fraction for parton pdf     
       xmin(2)=0d0
@@ -163,9 +179,9 @@ c      common/phitilde_table/x,y,w,n
       data iseed /10/
       common/fit1dim/kx,nx,tx,c,xe,xb,wrk,resfac
       include '../../Source/fit2D_card.inc'
-
+      
       open(unit=200,file='../ehist.dat',status='old',
-     $              err=999)
+     $        err=999)
 
 c     store the data table energy, phitilde in the arrays x(n),y(n)
       x=0d0
@@ -268,3 +284,186 @@ c     evaluate the spline interpolation
       end
 
 
+
+      subroutine init_ebeampdf
+***   Read the data table for the ebeam pdf and perform the 1D fit ***  
+      implicit none
+      include 'fit2D.inc'
+      include 'ebeampdf_fit.inc' 
+      include 'nexternal.inc'
+      include 'maxamps.inc'
+      integer ios,ipart,nfit
+      integer nmax,n,i,npart
+      parameter (nmax=1000,npart=3) 
+      double precision x(npart,nmax),y(npart,nmax),w(npart,nmax),a(4)
+c      common/phitilde_table/x,y,w,n
+      integer nxest,lwrk,iwrk(1000),iun(npart),ipdg(npart)
+      double precision s,min,max,xb(npart),xe(npart),fp,wrk(npart,100000),resfac(npart)
+      integer kx(npart),nx(npart),ier
+      double precision tx(npart,nmax),c(npart,nmax)
+      double precision E,fitvalue
+      real ran1
+      external ran1
+      integer iseed
+      data iseed /10/
+      common/ebeamfit1dim/kx,nx,tx,c,xe,xb,wrk,resfac,ipdg
+      character *50 filename
+
+      ipdg = -999999999
+
+      nfit = 0
+      open(unit=200,file='../../../../EbeamPdfFit/ehist_electron_pdf.dat',status='old',
+     $     iostat=ios)
+      if (ios.gt.0) then
+         continue
+      else
+         nfit = nfit+1
+         iun(nfit) = 200
+         ipdg(nfit) = 11 
+      endif
+      open(unit=210,file='../../../../EbeamPdfFit/ehist_positron_pdf.dat',status='old',
+     $     iostat=ios)
+      if (ios.gt.0) then
+         continue
+      else
+         nfit = nfit+1
+         iun(nfit) = 210
+         ipdg(nfit) = -11 
+      endif
+      open(unit=220,file='../../../../EbeamPdfFit/ehist_gamma_pdf.dat',status='old',
+     $     iostat=ios)
+      if (ios.gt.0) then
+         continue
+      else
+         nfit = nfit+1
+         iun(nfit) = 220
+         ipdg(nfit) = 22 
+      endif
+      
+
+c     store the data table energy, phitilde in the arrays x(n),y(n)
+      x=0d0
+      y=0d0
+      w=0d0
+
+      do ipart=1,nfit
+c     loop over infile lines until EoF is reached
+      n=3
+      do 
+         read(iun(ipart),*,iostat=ios) (a(i), i=1,4)
+         if (ios.gt.0) then
+            write(*,*) 'Something wrong in reading phitilde
+     $                  table! Exit!'
+            write(*,*) (a(i), i=1,4)
+            call exit(-1)
+         else if (ios.lt.0) then
+            n=n+1
+            x(ipart,2) = 0.5d0*(min+x(ipart,3))
+            y(ipart,2) = y(ipart,3)/2d0
+            w(ipart,2) = w(ipart,3)*2d0
+            x(ipart,1) = min
+            y(ipart,1) = y(ipart,2)/2d0
+            w(ipart,1) = w(ipart,2)*2d0
+            x(ipart,n-1) = 0.5d0*(max+x(ipart,n-2)) 
+            y(ipart,n-1) = y(ipart,n-2)/2d0
+            w(ipart,n-1)=w(ipart,n-2)*2d0
+            x(ipart,n)=max
+            y(ipart,n)=y(ipart,n-1)/2d0
+            w(ipart,n)=w(ipart,n-1)*2d0
+            close(iun(ipart))
+            exit
+         else
+            if (n.eq.3) min=a(1)  
+            x(ipart,n) = 0.5d0*(a(1)+a(2))
+            y(ipart,n) = a(3)+rescale_fac*a(4)
+            w(ipart,n) = 1d0/a(4)
+            max=a(2)
+            n=n+1
+         endif
+      enddo
+
+      
+c     rescaling for numerical stability
+      resfac(ipart) = maxval(y(ipart,:))
+      y(ipart,:) = y(ipart,:)/resfac(ipart)
+      w(ipart,:) = w(ipart,:)*resfac(ipart)
+               
+c     init parameters for bi-splines fitting  
+      xb(ipart)=min                       !xmin range
+      xe(ipart)=max                       !xman range
+      kx(ipart)=3                         !x spline order
+      s = n                     !smoothing parameter
+      nxest= n/2        
+      lwrk = n*(kx(ipart)+1)+nxest*(7+3*kx(ipart))
+
+c     curve fitting using the FITPACK by Dierckx
+      call curfit(0,n,x(ipart,:),y(ipart,:),w(ipart,:),xb(ipart),xe(ipart),
+     *     kx(ipart),s,nxest,nx(ipart),tx(ipart,:),c(ipart,:),fp,
+     *     wrk(ipart,:),lwrk,iwrk,ier)
+
+      if(testplot) then
+         write (filename, "(A24,I1,A4)") "../../../Cards/ebeampdf-", ipart,".dat"
+         open(unit=250,file=trim(filename),status='unknown')
+         do i=1,100000
+c     evaluate the spline interpolation
+            E = min + ran1(iseed)*(max-min)
+            call splev(tx(ipart,:),nx(ipart),c(ipart,:),kx(ipart),E,fitvalue,1,ier)
+            fitvalue = fitvalue*resfac(ipart)
+            write(250,*) E, fitvalue
+         enddo
+         close(250)
+      endif
+      enddo
+      
+      return
+
+ 999  write(*,*) 'Cannot open input data file, exit!'
+      call exit(-1)
+      end
+
+
+
+      double precision function get_ebeampdf(pdg,x)
+      implicit none
+      include 'maxparticles.inc'
+      include 'nexternal.inc'
+      include 'run.inc'
+      double precision x,E
+      integer nmax,i,npart,pdg,ipart
+      parameter (nmax=1000,npart=3) 
+      integer kx(npart),nx(npart),ier,ipdg(npart)
+      double precision tx(npart,nmax),c(npart,nmax),xe(npart),xb(npart),wrk(npart,100000)
+      double precision norm,splint,resfac(npart)
+      common/ebeamfit1dim/kx,nx,tx,c,xe,xb,wrk,resfac,ipdg
+      external splint
+      
+      logical firstcall
+      data firstcall/.true./
+      save firstcall
+      
+c     Initialization of the ebeam pdf
+      if(firstcall) then
+         call init_ebeampdf
+         firstcall = .false.
+      endif
+      
+      E = x*ebeam(1)
+
+      do i = 1,npart
+         if (ipdg(i) == pdg) ipart=i  
+      enddo
+      
+c     evaluate normalization
+c     norm = splint(tx,nx,c,kx,xb,xe,wrk)
+c     write(*,*) '#' , norm
+      get_ebeampdf = 0d0
+
+      if ( (E .gt.xb(ipart) ) .and. (E .lt. xe(ipart) ) ) then 
+c     evaluate the spline interpolation
+         call splev(tx(ipart,:),nx(ipart),c(ipart,:),kx(ipart),E,get_ebeampdf,1,ier)
+         get_ebeampdf = get_ebeampdf*resfac(ipart)
+      endif
+      
+      if (get_ebeampdf.lt.0d0) get_ebeampdf = 0d0
+      
+      end

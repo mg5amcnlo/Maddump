@@ -284,7 +284,7 @@ class CellHistogram(object):
     """Class to define the 2Dmesh as a collection of cells fitted starting 
     from the data sample."""
     
-    def __init__(self, pos, width, height,npts_exit=25 ,suffix=None):
+    def __init__(self, pos, width, height, npts_exit=25 ,suffix=None):
         self.cells = []
         self.intervals_x = []        
         self.intervals_y = []        
@@ -329,17 +329,17 @@ class CellHistogram(object):
         epstol = 0.001
         wgt = cell.weight
         cell.pts.sort()
-        if( abs(corner_x /self.canvas.corner.x -1.) < epstol ):
-            peripheral = True
-            weight=0
-            for pt in cell.pts[::-1]:
-                weight += pt.weight
-                if (weight > fac*wgt):
-                    isplit = cell.pts.index(pt)
-                    break
-
-            width = width -(cell.pts[isplit+1].x-corner_x)
-            corner_x = cell.pts[isplit+1].x
+        if self.canvas.corner.x != 0.:
+            if( abs(corner_x /self.canvas.corner.x -1.) < epstol ):
+                peripheral = True
+                weight=0
+                for pt in cell.pts[::-1]:
+                    weight += pt.weight
+                    if (weight > fac*wgt):
+                        isplit = cell.pts.index(pt)
+                        break
+                width = width -(cell.pts[isplit+1].x-corner_x)
+                corner_x = cell.pts[isplit+1].x
 
         if(abs( (corner_x+width)/(self.canvas.corner.x+self.canvas.width) -1.) < epstol):
             peripheral = True
@@ -356,17 +356,18 @@ class CellHistogram(object):
         cell.pts.sort()
         for pt in cell.pts:
             pt.exchange_xy()
-
-        if( abs( corner_y/self.canvas.corner.y -1. ) < epstol ):
-            peripheral = True
-            weight=0
-            for pt in cell.pts[::-1]:
-                weight += pt.weight
-                if (weight > fac*wgt):
-                    isplit = cell.pts.index(pt)
-                    break
-            height = height -(cell.pts[isplit+1].y-corner_y)
-            corner_y = cell.pts[isplit+1].y
+            
+        if self.canvas.corner.y != 0.:
+            if( abs( corner_y/self.canvas.corner.y -1. ) < epstol ):
+                peripheral = True
+                weight=0
+                for pt in cell.pts[::-1]:
+                    weight += pt.weight
+                    if (weight > fac*wgt):
+                        isplit = cell.pts.index(pt)
+                        break
+                height = height -(cell.pts[isplit+1].y-corner_y)
+                corner_y = cell.pts[isplit+1].y
             
         if( abs( (corner_y+height)/(self.canvas.corner.y+self.canvas.height) -1. ) < epstol) :
             peripheral = True
@@ -467,7 +468,7 @@ class CellHistogram(object):
                         tmp_canvas= []
 
                 else:
-                    cell1,cell2 = self.split[0](local_canvas)
+                    cell1,cell2 = split[0](local_canvas)
                     tmp_canvas.append(cell1)
                     tmp_canvas.append(cell2)
 
@@ -940,22 +941,43 @@ class fit2D_energy_theta(CellHistogram):
             theta = np.arccos(ctheta)
 
         # off-axis
-        if (self.fit2D_card['off_axis']):
-            thetac = self.fit2D_card['thetac']
-            delta_theta = self.fit2D_card['theta_aperture']
-            yc = z1*np.sin(thetac)
-            rcone_proj = z1*(np.sin(thetac+delta_theta)-np.sin(thetac))
+        # if (self.fit2D_card['off_axis']):
+        #     thetac = self.fit2D_card['thetac']
+        #     delta_theta = self.fit2D_card['theta_aperture']
+        #     yc = z1*np.sin(thetac)
+        #     rcone_proj = z1*(np.sin(thetac+delta_theta)-np.sin(thetac))
 
-            if abs(theta -thetac) > delta_theta:
-                return 0.
+        #     if abs(theta -thetac) > delta_theta:
+        #         return 0.
             
-            r = z1*stheta            
-            sphi_star = (r**2-rcone_proj**2+yc**2)/(2.*r*yc)
+        #     r = z1*stheta            
+        #     sphi_star = (r**2-rcone_proj**2+yc**2)/(2.*r*yc)
 
-            if sphi < sphi_star:
+        #     if sphi < sphi_star:
+        #         return 0.
+        #     else:            
+        #         return self.fit2D_card['off_axis_depth']
+
+        if (self.fit2D_card['off_axis']):
+            
+            yc = self.fit2D_card['yc']
+            r_proj = self.fit2D_card['radius']
+
+            thetac = np.atan(yc/z1)
+            thatah = np.atan((yc+r_proj)/z1)
+            thatal = np.atan((yc-r_proj)/z1)
+
+            if theta>(thetac+thetah) or theta<(thetac-thetal):
+                return 0.
+
+            r = z1*stheta            
+            cphi_star = (r**2-r_proj**2+yc**2)/(2.*r*yc)
+
+            if abs(cphi) > abs(cphi_star):
                 return 0.
             else:            
-                return self.fit2D_card['off_axis_depth']
+                return depth/ctheta
+
             
         # cylinder detector
         if (self.fit2D_card['cylinder']):
@@ -1047,31 +1069,41 @@ class fit2D_energy_theta(CellHistogram):
             nevt = len(lhe_evts)
         for event in lhe_evts:
             for particle in event:
-                if particle.status == 1: # stable final state 
-                    if abs(particle.pid) == int(self.proc_characteristics['DM']):
-                        p = lhe_parser.FourMomentum(particle)
-                        ctheta = (p.pz/p.norm)
-                        stheta = np.sqrt(1.-ctheta**2)
+                if len(event) == 1:
+                    if particle.status == 1:
+                        continue
+                else:
+                    if particle.status != 1: # stable final state
+                        continue
+                    
+                if abs(particle.pid) == int(self.proc_characteristics['DM']):
+                    p = lhe_parser.FourMomentum(particle)
+                    ctheta = (p.pz/p.norm)
+                    stheta = np.sqrt(1.-ctheta**2)
+                    if ((p.px==0) and (p.py==0)):
+                        cphi=1.
+                        sphi=0.
+                    else:
                         cphi = p.px/np.sqrt(p.px**2+p.py**2)
                         sphi = p.py/np.sqrt(p.px**2+p.py**2)
-                        weight = self.eff_function(p.E,ctheta,stheta,cphi,sphi)
-                        if weight != 0.:
-                            npass+=1
-                            theta = np.arccos(ctheta)
-                            data.append(WeightedPoint(p.E,theta, \
-                                                      norm/nevt*weight))
-                            if self.testplot:
-                                s = str(p.E) + '\t' + str(theta) + '\t' + str(cphi) + \
-                                    '\t' + str(sphi) + '\t' + str(norm/nevt*weight) +'\n'  
-                                scatterdata.write(s)
-                            if p.E < E_min:
-                                E_min = p.E
-                            if p.E > E_max:
-                                E_max = p.E
-                            if theta < theta_min:
-                                theta_min = theta
-                            if theta > theta_max:
-                                theta_max = theta
+                    weight = self.eff_function(p.E,ctheta,stheta,cphi,sphi)
+                    if weight != 0.:
+                        npass+=1
+                        theta = np.arccos(ctheta)
+                        data.append(WeightedPoint(p.E,theta, \
+                                                  norm/nevt*weight))
+                        if self.testplot:
+                            s = str(p.E) + '\t' + str(theta) + '\t' + str(cphi) + \
+                                '\t' + str(sphi) + '\t' + str(norm/nevt*weight) +'\n'  
+                            scatterdata.write(s)
+                        if p.E < E_min:
+                            E_min = p.E
+                        if p.E > E_max:
+                            E_max = p.E
+                        if theta < theta_min:
+                            theta_min = theta
+                        if theta > theta_max:
+                            theta_max = theta
         return npass,E_min,E_max,theta_min,theta_max,data
                             #print(E_min,theta_min,E_max,theta_max,len(data))
 
@@ -1089,11 +1121,17 @@ class fit2D_energy_theta(CellHistogram):
         nevts = self.fit2D_card['nevts_interaction']
         if nevts < 0:
             nevts = int (3 * self.npass)
-        run_card = banner_mod.RunCard(pjoin('run_card_default.dat'))
+        run_card = banner_mod.RunCard(pjoin('run_card.dat'))
         run_card['nevents'] = nevts
-        run_card['lpp2'] = self.lpp2[self.interaction_channel]
+        if self.interaction_channel:
+            run_card['lpp2'] = self.lpp2[self.interaction_channel]
         run_card['ebeam1'] = self.E_max
-        run_card['ebeam2'] = self.ebeam2[self.interaction_channel]
+        if self.interaction_channel:
+            run_card['ebeam2'] = self.ebeam2[self.interaction_channel]
+
+        else:
+            run_card['ebeam2'] = 0.938
+
         run_card['use_syst'] = False
         run_card.write(pjoin('run_card.dat'))
 

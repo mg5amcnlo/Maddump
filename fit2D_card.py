@@ -42,11 +42,8 @@ class Fit2DCard(bannermod.RunCard):
         
         #cut
         self.add_param("off_axis", False,comment= 'select off-axis mode')
-        #self.add_param("xc", 0., comment= 'x coordinate of the central point wrt the beam axis')
-        #self.add_param("yc", 0., comment= 'y coordinate central point wrt the beam axis in cm')
-        self.add_param("thetac", 0., comment= 'angular coordinate  of the cone wrt the beam axis in rad')
-        self.add_param("theta_aperture", 0., comment= 'angular aperture of the cone in rad')
-        self.add_param("off_axis_depth", 0., comment= 'cone depth in cm ')
+        self.add_param("yc", 0., comment= 'distance of the center of the first circle from the beam axis')
+        self.add_param("radius", 0., comment= 'radius of the first circle')
         
         self.add_param("cylinder", False)
         #self.add_param("theta_min", 0.)
@@ -82,6 +79,6 @@ class Fit2DCard(bannermod.RunCard):
                 template = pjoin('../PLUGIN/maddump/Templates', 'Cards', 
                                  'fit2D_card.dat')
             python_template = True
-                   
+
         super(Fit2DCard, self).write(output_file, template=template,
                                     python_template=python_template, **opt)
