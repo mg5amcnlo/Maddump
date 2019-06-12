@@ -339,7 +339,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
             #         evts_file = evts_file.replace('.gz','')
 
             try:
-                os.makedirs(pjoin(decay_dir,'Events'))
+                os.makedirs(pjoin(bremsstrahlung_dir,'Events'))
             except:
                 pass
             
@@ -351,8 +351,6 @@ class MADDUMPRunCmd(cmd.CmdShell):
             label = '#bremsstrahlung_norm'
             self.results[label] = hist2D_z_pt2.flux_norm
 
-            return
-            
             # bremsstrahalung_file = 
             # try:
             #     files.mv(decayed_file,pjoin(evt_dir,'unweighted_events.lhe.gz'))

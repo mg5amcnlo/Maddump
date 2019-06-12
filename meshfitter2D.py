@@ -329,6 +329,7 @@ class CellHistogram(object):
         epstol = 0.001
         wgt = cell.weight
         cell.pts.sort()
+        
         if self.canvas.corner.x != 0.:
             if( abs(corner_x /self.canvas.corner.x -1.) < epstol ):
                 peripheral = True
@@ -379,48 +380,56 @@ class CellHistogram(object):
                     break
             height = cell.pts[isplit-1].y-corner_y
 
-        fac=0.98
-        cell.pts.sort()
-        wgt = cell.weight
-        weight=0
-        for pt in cell.pts:
-            weight += pt.weight
-            if (weight > fac*wgt):
-                isplit = cell.pts.index(pt)
-                break
-        while (True):
-            if( cell.pts[0].x-corner_x < width/2. ):
-                if ( cell.pts[isplit-1].x-corner_x < width/2. ):
+
+        if not peripheral:
+            
+            fac=0.98
+            cell.pts.sort()
+            wgt = cell.weight
+            weight=0
+            for pt in cell.pts:
+                weight += pt.weight
+                if (weight > fac*wgt):
+                    isplit = cell.pts.index(pt)
+                    break
+
+            if (cell.pts[0].x-corner_x<0.):
+                print cell.pts[0].x,corner_x
+                print cell.corner.x, cell.width
+
+            while (True):
+                if( cell.pts[0].x-corner_x < width/2. ):
+                    if ( cell.pts[isplit-1].x-corner_x < width/2. ):
+                        width=width/2.
+                        continue
+                if( cell.pts[1].x-corner_x > width/2. ):
+                    corner_x = corner_x + width/2.
                     width=width/2.
                     continue
-            if( cell.pts[1].x-corner_x > width/2. ):
-                corner_x = corner_x + width/2.
-                width=width/2.
-                continue
-            break
-
-        for pt in cell.pts:
-            pt.exchange_xy()
-        cell.pts.sort()
-        for pt in cell.pts:
-            pt.exchange_xy()
-        #wgt = cell.weight
-        weight=0
-        for pt in cell.pts:
-            weight += pt.weight
-            if (weight > fac*wgt):
-                isplit = cell.pts.index(pt)
                 break
-        while (True):
-            if( cell.pts[0].y-corner_y < height/2. ):
-                if ( cell.pts[isplit-1].y-corner_y < height/2. ):
+
+            for pt in cell.pts:
+                pt.exchange_xy()
+            cell.pts.sort()
+            for pt in cell.pts:
+                pt.exchange_xy()
+            #wgt = cell.weight
+            weight=0
+            for pt in cell.pts:
+                weight += pt.weight
+                if (weight > fac*wgt):
+                    isplit = cell.pts.index(pt)
+                    break
+            while (True):
+                if( cell.pts[0].y-corner_y < height/2. ):
+                    if ( cell.pts[isplit-1].y-corner_y < height/2. ):
+                        height = height/2.
+                        continue
+                if( cell.pts[1].y-corner_y > height/2. ):
+                    corner_y = corner_y + height/2.
                     height = height/2.
                     continue
-            if( cell.pts[1].y-corner_y > height/2. ):
-                corner_y = corner_y + height/2.
-                height = height/2.
-                continue
-            break
+                break
         
 
         s = str(corner_x) + "\t" + str(corner_y) + "\t" + \
