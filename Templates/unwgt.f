@@ -937,7 +937,7 @@ c     once a cell is selected, a value of theta is taken uniformly inside it
       parameter (pi=3.1415926d0)
 
       if(off_axis) then
-         evt_radius = d_target_detector*dsin(theta)
+         evt_radius = d_target_detector*dtan(theta)
          cphi_star = (evt_radius**2-radius**2+yc**2)/(2.*evt_radius*yc)
          if (cphi_star .gt. 0d0) then
             phimax= acos(cphi_star)
@@ -1061,18 +1061,18 @@ c--- off-axis
          thetah = atan((yc+radius)/d_target_detector)
          thetal = atan((yc-radius)/d_target_detector)
 
-         if((theta>(thetac+thetah)).or.(theta<(thetac-thetal)))  then
+         if((theta>thetah).or.(theta<thetal))  then
             max_travel_distance = 0d0
             return
          endif
-         evt_radius = z1*dsin(theta)
+         evt_radius = z1*dtan(theta)
          cphi_star = (evt_radius**2-radius**2+yc**2)/(2.*evt_radius*yc)
 
-         if (cphi > dabs(cphi_star) ) then
-            max_travel_distance = 0d0
-            return
+         if (sphi>0 .and. sphi > cphi_star ) then
+            max_travel_distance = depth/dcos(theta)
+            return 
          else
-            max_travel_distance = depth
+            max_travel_distance = 0d0
             return
          endif
       endif

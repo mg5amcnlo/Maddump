@@ -22,7 +22,7 @@ class EbeamPdfFitCard(bannermod.RunCard):
         self.add_param("flux_norm_electron", 1., comment= 'Overall normalization of the incoming flux of electrons')
         self.add_param("flux_norm_positron", 1., comment= 'Overall normalization of the incoming flux of positrons')
         self.add_param("flux_norm_gamma", 1., comment= 'Overall normalization of the incoming flux of gammas')
-        
+        self.add_param("ebeampdf_interp_method", 'hist', comment= 'method of the interpolation: "hist" (piecewise), "spline"(smooth) ')                
         self.add_param("ebeam_ncores",4,comment = "number of cores for the fit")
         self.add_param("ebeam_testplot",True,comment = "turn on/off 2D mesh plotting")        
         self.add_param("ebeam_nexit",500,comment = "exit condition in the fit procedure")

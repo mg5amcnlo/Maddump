@@ -21,8 +21,8 @@
    %(npot)s =  npot ! momentum of the primary beam
    %(z_min)s =  z_min ! minimum value for the energy fraction z
    %(z_max)s =  z_max ! maximum value for the energy fraction z
-   %(pt2_min)s =  pt2_min ! minimum value for the squar of the transverse momentum 
-   %(pt2_max)s =  pt2_max ! maximum value for the squar of the transverse momentum 
+   %(pt2_min)s =  pt2_min ! minimum value for the square of the transverse momentum 
+   %(pt2_max)s =  pt2_max ! maximum value for the square of the transverse momentum 
    %(ngen)s =  ngen ! number of events to be generated
 
 

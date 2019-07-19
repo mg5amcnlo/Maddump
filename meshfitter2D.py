@@ -14,6 +14,8 @@ import madgraph.various.lhe_parser as lhe_parser
 
 def plot (infile,outfile=None):
     """ Plot the canvas with the 2D mesh."""
+    import matplotlib
+#    matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     from matplotlib.collections import PatchCollection
     from matplotlib.patches import Rectangle
@@ -329,7 +331,6 @@ class CellHistogram(object):
         epstol = 0.001
         wgt = cell.weight
         cell.pts.sort()
-        
         if self.canvas.corner.x != 0.:
             if( abs(corner_x /self.canvas.corner.x -1.) < epstol ):
                 peripheral = True
@@ -380,9 +381,7 @@ class CellHistogram(object):
                     break
             height = cell.pts[isplit-1].y-corner_y
 
-
         if not peripheral:
-            
             fac=0.98
             cell.pts.sort()
             wgt = cell.weight
@@ -392,11 +391,6 @@ class CellHistogram(object):
                 if (weight > fac*wgt):
                     isplit = cell.pts.index(pt)
                     break
-
-            if (cell.pts[0].x-corner_x<0.):
-                print cell.pts[0].x,corner_x
-                print cell.corner.x, cell.width
-
             while (True):
                 if( cell.pts[0].x-corner_x < width/2. ):
                     if ( cell.pts[isplit-1].x-corner_x < width/2. ):
@@ -692,6 +686,7 @@ class CellHistogram(object):
         cells = [canvas]
 
         npts=self.npts
+#        weight_exit = self.weight/50.
         weight_exit = self.weight/50.
 
         split = [self.equalweight_split_vertically]
@@ -870,6 +865,8 @@ class CellHistogram(object):
 
     def plot (self,outfile=None):
         """ Plot the canvas with the 2D mesh."""
+        import matplotlib
+#        matplotlib.use('Agg')
         import matplotlib.pyplot as plt
         from matplotlib.collections import PatchCollection
         from matplotlib.patches import Rectangle
@@ -972,28 +969,30 @@ class fit2D_energy_theta(CellHistogram):
             yc = self.fit2D_card['yc']
             r_proj = self.fit2D_card['radius']
 
-            thetac = np.atan(yc/z1)
-            thatah = np.atan((yc+r_proj)/z1)
-            thatal = np.atan((yc-r_proj)/z1)
+            thetac = np.arctan(yc/z1)
+            thetah = np.arctan((yc+r_proj)/z1)
+            thetal = np.arctan((yc-r_proj)/z1)
 
-            if theta>(thetac+thetah) or theta<(thetac-thetal):
+            if theta>thetah or theta<thetal:
                 return 0.
 
-            r = z1*stheta            
+            r = z1*np.tan(theta)
             cphi_star = (r**2-r_proj**2+yc**2)/(2.*r*yc)
 
-            if abs(cphi) > abs(cphi_star):
-                return 0.
-            else:            
+            #print sphi,cphi_star
+            
+            if sphi > 0 and sphi > cphi_star:
                 return depth/ctheta
+            else:            
+                return 0.
 
             
         # cylinder detector
         if (self.fit2D_card['cylinder']):
-            theta_min = self.fit2D_card['theta_min']
-            if theta_min!=0.:
-                print('Error: theta_min != 0. do not supported!')
-                exit(-1)
+            # theta_min = self.fit2D_card['theta_min']
+            # if theta_min!=0.:
+            #     print('Error: theta_min != 0. do not supported!')
+            #     exit(-1)
             theta_max = self.fit2D_card['theta_max']
             if theta > theta_max:
                 return 0.
@@ -1587,7 +1586,9 @@ class fit2D_energy_theta(CellHistogram):
             out.write(s)
         out.close()
         
-    def plot_theta_check(self,infile,Em,Ep):        
+    def plot_theta_check(self,infile,Em,Ep):
+        import matplotlib
+#        matplotlib.use('Agg')
         import matplotlib.pyplot as plt
         from matplotlib.ticker import MultipleLocator
     

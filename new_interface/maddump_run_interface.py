@@ -260,13 +260,14 @@ class MADDUMPRunCmd(cmd.CmdShell):
         if self.DMmode in ['production_interaction','production_decay']:
             dir = 'production'
             cpath = pjoin(self.dir_path, dir, 'Cards')
-
-            fit2D_card = fit2D.Fit2DCard(pjoin(cpath, 'fit2D_card.dat'))
-            fit2D_card.write_include_file(pjoin(self.dir_path, dir, 'Source'))           
-            brems_card = bremss.BremsstrahlungCard(pjoin(cpath, 'bremsstrahlung_card.dat'))
-            brems_card.write_include_file(pjoin(self.dir_path, dir, 'Source'))           
-            ebeam_card = ebeampdf_card.EbeamPdfFitCard(pjoin(cpath, 'ebeampdf_fit_card.dat'))
-            ebeam_card.write_include_file(pjoin(self.dir_path, dir, 'Source'))           
+            
+            if self.electron_beam_mode:
+                fit2D_card = fit2D.Fit2DCard(pjoin(cpath, 'fit2D_card.dat'))
+                fit2D_card.write_include_file(pjoin(self.dir_path, dir, 'Source'))           
+                #brems_card = bremss.BremsstrahlungCard(pjoin(cpath, 'bremsstrahlung_card.dat'))
+                #brems_card.write_include_file(pjoin(self.dir_path, dir, 'Source'))           
+                ebeam_card = ebeampdf_card.EbeamPdfFitCard(pjoin(cpath, 'ebeampdf_fit_card.dat'))
+                ebeam_card.write_include_file(pjoin(self.dir_path, dir, 'Source'))           
 
             misc.call(['./bin/generate_events', self.run_name, '-f'],
                       cwd=pjoin(self.dir_path, 'production'))
@@ -534,8 +535,10 @@ class MADDUMPRunCmd(cmd.CmdShell):
     def ask_run_configuration(self, mode=None, force=False):
         """ask the question about card edition """
         
-        if self.DMmode in ['production_interaction','interaction_only']: 
+        if self.DMmode in ['production_interaction']:
             cards = ['param_card.dat','fit2D_card.dat','run_card.dat']
+        elif self.DMmode in ['interaction_only']: 
+            cards = ['param_card.dat','fit2D_card.dat']
         elif self.DMmode == 'production_decay':
             cards = ['param_card.dat','run_card.dat','madspin_card.dat']
         elif self.DMmode in ['decay_interaction']:
