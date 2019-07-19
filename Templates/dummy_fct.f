@@ -290,7 +290,7 @@ c     init parameters for bi-splines fitting
       xe=max                       !xmin range
       kx=3                         !x spline order
       s = n                     !smoothing parameter
-      nxest= n+kx+1 !n/2        
+      nxest= n/2        
       lwrk = n*(kx+1)+nxest*(7+3*kx)
 
 c     curve fitting using the FITPACK by Dierckx
@@ -662,7 +662,7 @@ c     init parameters for bi-splines fitting
       xe(ipart)=max                       !xman range
       kx(ipart)=3                         !x spline order
       s = n                     !smoothing parameter
-      nxest = n+kx(ipart)+1 !n/2        
+      nxest = n/2        
       lwrk = n*(kx(ipart)+1)+nxest*(7+3*kx(ipart))
 
 c     curve fitting using the FITPACK by Dierckx
