@@ -88,12 +88,13 @@ class fit2D_ebeampdf(CellHistogram):
         return E_min,E_max,theta_min,theta_max,data
 
                 
-    def do_fit(self):
+    def do_fit(self, do_1dfit=True):
         self.ncores = self.ebeamfit_card['ebeam_ncores']
         # Generate the 2DMesh, output file: cell_fortran.dat
         self.fit(ncores=self.ncores)
         outname = 'cell_fortran_'+self.label+'.dat'
-        self.fit('1D_x',ncores=self.ncores)
+        if do_1dfit:
+            self.fit('1D_x',ncores=self.ncores)
         
         os.system('mv cell_fortran.dat '+outname)
         if self.ebeamfit_card['ebeam_testplot']:

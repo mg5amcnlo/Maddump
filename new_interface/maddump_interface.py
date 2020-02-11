@@ -86,6 +86,7 @@ class MadDump_interface(master_interface.MasterCmd):
         self._multiparticles = {}
         self._ebeamdump_mode = False
         self._evts_inputfile_ebeampdf = [None,None,None]
+        self._inputfile_ebeampdf = [None,None,None]        
         self.n = 0
 ################################################################################        
 # DEFINE COMMAND
@@ -242,6 +243,53 @@ class MadDump_interface(master_interface.MasterCmd):
 
         if len(args) == 1:
             out['maddump options'] = self.list_completion(text, self._importevts_options, line)
+            return self.deal_multiple_categories(out, formatting)        
+        if len(args) == 2:
+            base_dir = '.'
+        else:
+            base_dir = args[2]
+        
+        return self.path_completion(text, base_dir)
+        
+        # Directory continuation
+        if os.path.sep in args[-1] + text:
+            return self.path_completion(text,
+                                    pjoin(*[a for a in args if \
+                                                      a.endswith(os.path.sep)]))
+ 
+    def do_import_ebeampdf(self, line):
+        args = self.split_arg(line)
+        # if '.lhe' or '.hepmc' not in args:
+        #     raise DMError, 'Events file name must contain .lhe or .hepmc extension!'
+        
+        for key in self._ebeamdict.keys():
+            if key in line:
+                args.pop(0)
+                if not os.path.isfile(args[0]):
+                    raise DMError, 'Invalid path: the file does not exist!'
+                
+                if not self._inputfile_ebeampdf[self._ebeamdict[key]]:
+                    self._inputfile_ebeampdf[self._ebeamdict[key]] = args[0]
+                else:
+                    while(1):
+                        answ = raw_input ('Grid file for '+key+' already loaded. Do you want to overwrite it? [y/n] ')
+                        if answ == 'y':
+                            self._inputfile_ebeampdf[self._ebeamdict[key]] = args[0]
+                            break 
+                        elif answ == 'n':
+                            break
+                        else:
+                            print("Please, answer with 'y' or 'n'.")
+                
+                
+    def complete_import_ebeampdf(self, text, line, begidx, endidx, formatting=True):
+        "Complete the import_ebeampdf command"
+        
+        out = {}
+        args = self.split_arg(line[0:begidx])
+
+        if len(args) == 1:
+            out['maddump options'] = self.list_completion(text, self._ebeamdict , line)
             return self.deal_multiple_categories(out, formatting)        
         if len(args) == 2:
             base_dir = '.'
@@ -476,11 +524,18 @@ class MadDump_interface(master_interface.MasterCmd):
         if self._ebeamdump_mode:
             ebeampdf_dir = pjoin(self._out_dir, 'EbeamPdfFit')
             os.makedirs(ebeampdf_dir)
+
             for key in self._ebeamdict.keys():
+                if self._inputfile_ebeampdf[self._ebeamdict[key]]:
+                    file,extension =  os.path.splitext(self._inputfile_ebeampdf[self._ebeamdict[key]])
+                    ln(file+extension, ebeampdf_dir,'ehist_'+key+'.dat')
                 if self._evts_inputfile_ebeampdf[self._ebeamdict[key]]:
                     file,extension =  os.path.splitext(self._evts_inputfile_ebeampdf[self._ebeamdict[key]])
                     ln(file+extension, ebeampdf_dir,key+extension)
-            
+
+            # if n==0:
+            #     raise DMError, 'electron_beam_dump mode: missing input (input pdf and/or events file)!'
+
         # proc_production = 
         # for proc in self._curr_proc_defs:
         #     if proc['id']<1000:
@@ -518,8 +573,10 @@ class MadDump_interface(master_interface.MasterCmd):
                 # check whether the ebeampdf_fit_card is already in the common Cards dir
                 # otherwise it is copied from the current process 
                 if cards[6] not in os.listdir(cards_dir):
+                    pcard = pjoin(self._out_dir,'production', 'Cards')
+                    if cards[6] not in os.listdir(pcard):
+                        self.create_ebeampdffit_card(pcard)
                     for i in range(6,8):
-                        pcard = pjoin(self._out_dir,'production', 'Cards')
                         cp(pjoin(pcard, cards[i]), cards_dir)
                         # os.remove(pjoin(pcard, cards[i]))
                         # ln(pjoin(cards_dir, cards[i]), pcard, ) 

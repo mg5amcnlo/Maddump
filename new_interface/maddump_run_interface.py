@@ -253,7 +253,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
 
         if self.electron_beam_mode:
             cpath = pjoin(self.dir_path, 'Cards')
-            ebeam_card = ebeampdf_card.EbeamPdfFitCard(pjoin(cpath, 'ebeampdf_fit_card.dat'))
+            ebeam_card = ebeampdf_card.EbeamPdfFitCard(pjoin(cpath, 'ebeampdf_fit_card.dat'))     
             if ebeam_card['ebeam_dofit']:
                 self.do_ebeampdffit()
         
@@ -697,13 +697,20 @@ class MADDUMPRunCmd(cmd.CmdShell):
         labels = ['electron_pdf','positron_pdf','gamma_pdf']
         for infile in listdir:
             label,ext = os.path.splitext(infile)
-            print label
-            if  label in labels:
-                print 'do fit: it takes some minutes '
-                with misc.chdir(ebeampdf_dir):
-                    hist2D_ebeamfit =  ebeampdf.fit2D_ebeampdf(infile,label)
-                    hist2D_ebeamfit.do_fit()
-    
+            if ext in ['.lhe','.hepmc']:  
+                print label
+                if  label in labels:
+                    print 'do fit: it takes some minutes '
+                    with misc.chdir(ebeampdf_dir):
+                        hist2D_ebeamfit =  ebeampdf.fit2D_ebeampdf(infile,label)
+                        do_1dfit = True
+                        if 'ehist_'+label+'.dat' in listdir:
+                            do_1dfit = False
+                        hist2D_ebeamfit.do_fit(do_1dfit)
+                        
+        # ebeamfit_card = ebeampdf_card.EbeamPdfFitCard( pjoin(self.dir_path,'Cards/ebeampdf_fit_card.dat') ) 
+        # ebeamfit_card["ebeampdf"] = True
+        # ebeamfit_card.write(pjoin(self.dir_path,'production/Cards/ebeampdf_fit_card.dat'),template=pjoin(self.dir_path,'Cards/ebeampdf_fit_card.dat'))
 
 
 

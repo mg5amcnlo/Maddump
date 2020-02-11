@@ -563,16 +563,16 @@ class CellHistogram(object):
         tmp_T = np.transpose(tmp)
         sort = tmp_T[tmp_T[:,0].argsort()]
         
-        x,y,width,height = np.loadtxt('cell_fortran'+str(self.suffix)+'.dat', unpack = True)
+        # x,y,width,height = np.loadtxt('cell_fortran'+str(self.suffix)+'.dat', unpack = True)
 
-        xmin=min(x)
-        if xmin > sort[0,0]:
-             sort[0,0] = xmin
+        # xmin=min(x)
+        # if xmin > sort[0,0]:
+        #     sort[0,0] = xmin
 
-        c = [x[i]+width[i] for i in range(len(x))]
-        xmax = max(c)
-        if xmax < sort[-1,1]:
-            sort[-1,1]= xmax 
+        # c = [x[i]+width[i] for i in range(len(x))]
+        # xmax = max(c)
+        # if xmax < sort[-1,1]:
+        #     sort[-1,1]= xmax 
 
         for line in sort:
             out.write(str(line)[1:-1]+"\n")
@@ -737,6 +737,8 @@ class CellHistogram(object):
     def equalweight_split_vertically(self,cell):
         """ Split a cell vertically with the criterion of equal weight."""
         cell.pts.sort()
+
+        isplit = len(cell.pts)/2
         weight=0
         for pt in cell.pts:
             weight += pt.weight
@@ -758,7 +760,8 @@ class CellHistogram(object):
         cell.pts.sort()
         for pt in cell.pts:
             pt.exchange_xy()
-        
+
+        isplit = len(cell.pts)/2
         weight=0
         for pt in cell.pts:
             weight += pt.weight
@@ -1046,9 +1049,12 @@ class fit2D_energy_theta(CellHistogram):
         
     def eff_function(self,E,ctheta,stheta,cphi,sphi):
         depth = self.fit2D_card['depth']
-        return self.max_travel_distance(ctheta,stheta,cphi,sphi)*ctheta/depth
-
-    
+        tmp =  self.max_travel_distance(ctheta,stheta,cphi,sphi)*ctheta/depth
+        if tmp > 0.:
+            return tmp
+        else:
+            return 0.
+        
     def store_reweight(self,input_lhe_evts):
         E_min = 1e20
         E_max = 0.

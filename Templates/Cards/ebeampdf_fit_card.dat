@@ -24,7 +24,7 @@
    %(ebeam_ncores)s       =  ebeam_ncores ! number od cores for the fit 
    %(ebeam_testplot)s   =  ebeam_testplot ! if True store the 2D fitted mesh
    %(ebeam_nexit)s       =  ebeam_nexit ! exit condition in the fit procedure   
-   %(ebeampdf_interp_method)s  =  ebeampdf_interp_method ! method of the interpolation: "hist" (piecewise), "spline"(smooth)
+   %(ebeampdf_interp_method)s  =  ebeampdf_interp_method ! method of the interpolation: "hist" (piecewise), "lagrangian"(2nd order polynomial),  "spline"(smooth)
 
 
 #*********************************************************************

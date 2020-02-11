@@ -290,7 +290,7 @@ c     init parameters for bi-splines fitting
       xe=max                       !xmin range
       kx=3                         !x spline order
       s = n                     !smoothing parameter
-      nxest= n/2        
+      nxest= n+kx+1 !n/2        
       lwrk = n*(kx+1)+nxest*(7+3*kx)
 
 c     curve fitting using the FITPACK by Dierckx
@@ -397,16 +397,19 @@ c     evaluate the spline interpolation
       include 'run.inc'
       include 'ebeampdf_fit.inc' 
       double precision x,E
-      integer nmax,i,npart,pdg,ipart
+      integer nmax,i,npart,pdg,ipart,j
       parameter (nmax=1000,npart=3) 
       integer kx(npart),nx(npart),ier,ipdg(npart)
       double precision tx(npart,nmax),c(npart,nmax),xe(npart),xb(npart),wrk(npart,100000)
       double precision norm,splint,resfac(npart)
       common/ebeamfit1dim/kx,nx,tx,c,xe,xb,wrk,resfac
       external splint
-      integer k,ia,ib,nbin(npart)
+      integer k,ia,ib,nbin(npart),narr(npart)
       double precision edges(npart,nmax),hist(npart,nmax),errhist(npart,nmax)
       common/ebeampdf_fit_hist/nbin,edges,hist,errhist
+      double precision xarr(nmax,npart),yarr(nmax,npart),dy2arr(nmax,npart),dy
+      common/ebeampdf_fit_common/xarr,yarr,narr
+      common/ebeampdf_fit_spline/dy2arr
       
       logical firstcall
       data firstcall/.true./
@@ -453,13 +456,25 @@ c     write(*,*) '#' , norm
            endif
         enddo
  
-      else
-         if ( (E .gt.xb(ipart) ) .and. (E .lt. xe(ipart) ) ) then 
-c     evaluate the spline interpolation
-            call splev(tx(ipart,:),nx(ipart),c(ipart,:),kx(ipart),E,get_ebeampdf,1,ier)
-            get_ebeampdf = get_ebeampdf*resfac(ipart)
+      elseif (ebeampdf_interp_method .eq. 'lagrangian') then
+
+         if (dlog(E) < xarr(1,ipart) .or. dlog(E) > xarr(narr(ipart),ipart)) return
+         call locate(xarr(1,ipart),narr(ipart),dlog(E),j)
+         if (j+1>narr(ipart)) then
+            j=narr(ipart)-1
          endif
-         
+         call polint(xarr(j,ipart),yarr(j,ipart),2,dlog(E),get_ebeampdf,dy)
+           
+      else
+         if (dlog(E) < xarr(1,ipart) .or. dlog(E) > xarr(narr(ipart),ipart)) return
+
+         call spline_int(xarr(1,ipart),yarr(1,ipart),dy2arr(1,ipart),narr(ipart),dlog(E),get_ebeampdf)
+c--- old spline routine         
+c$$$         if ( (E .gt.xb(ipart) ) .and. (E .lt. xe(ipart) ) ) then 
+c$$$c     evaluate the spline interpolation
+c$$$            call splev(tx(ipart,:),nx(ipart),c(ipart,:),kx(ipart),E,get_ebeampdf,1,ier)
+c$$$            get_ebeampdf = get_ebeampdf*resfac(ipart)
+c$$$         endif        
       endif
       
       if (get_ebeampdf.lt.0d0) get_ebeampdf = 0d0
@@ -473,10 +488,14 @@ c     evaluate the spline interpolation
       parameter(npart=3)
       integer ipdg(npart)
       if (ebeampdf_interp_method .eq. 'hist') then
-c      if (.true.) then
          call init_ebeampdf_hist(ipdg)
-      else
+      elseif (ebeampdf_interp_method .eq. 'lagrangian') then
+         call init_ebeampdf_lagrangian(ipdg)
+      elseif (ebeampdf_interp_method .eq. 'spline') then
          call init_ebeampdf_spline(ipdg)
+      else
+         write(*,*) "Wrong interpolation method for ebeam_pdf" 
+         call exit(-1)
       endif
       
       end
@@ -554,7 +573,209 @@ c      if (.true.) then
       end
 
 
+      subroutine init_ebeampdf_lagrangian(ipdg)
+***   Read the data table for phitilde(E) and load the 1D hist ***  
+      implicit none
+      include 'fit2D.inc'
+      include 'ebeampdf_fit.inc' 
+      integer npart,ipart
+      parameter(npart=3)
+      integer narr(npart),nmax,i,k,ios,iun(npart),ipdg(npart),nfit,j
+      parameter (nmax=1000)
+      double precision xarr(nmax,npart),yarr(nmax,npart),fitvalue,dy,a(4)
+      double precision E,xx(nmax),x(3),y(3)
+      common/ebeampdf_fit_common/xarr,yarr,narr
+      real ran1
+      external ran1
+      integer iseed
+      data iseed /10/
+      character *50 filename
+
+      ipdg = -999999999
+
+      nfit = 0
+      open(unit=200,file='../../../../EbeamPdfFit/ehist_electron_pdf.dat',status='old',
+     $     iostat=ios)
+      if (ios.gt.0) then
+         continue
+      else
+         nfit = nfit+1
+         iun(nfit) = 200
+         ipdg(nfit) = 11 
+      endif
+      open(unit=210,file='../../../../EbeamPdfFit/ehist_positron_pdf.dat',status='old',
+     $     iostat=ios)
+      if (ios.gt.0) then
+         continue
+      else
+         nfit = nfit+1
+         iun(nfit) = 210
+         ipdg(nfit) = -11 
+      endif
+      open(unit=220,file='../../../../EbeamPdfFit/ehist_gamma_pdf.dat',status='old',
+     $     iostat=ios)
+      if (ios.gt.0) then
+         continue
+      else
+         nfit = nfit+1
+         iun(nfit) = 220
+         ipdg(nfit) = 22 
+      endif
+      
+      do ipart=1,nfit
+         k=1
+         do 
+            read(iun(ipart),*,iostat=ios) (a(i), i=1,4)
+            if (ios.gt.0) then
+               write(*,*) 'Something wrong in reading ebeampdf
+     $table! Exit!'
+               write(*,*) (a(i), i=1,4)
+               call exit(-1)
+            else if (ios.lt.0) then
+               xarr(k,ipart) = dlog(a(2))
+               yarr(k,ipart) = 0d0
+               close(iun(ipart))
+               exit
+            else
+               if(k==1) then
+                  xarr(k,ipart) = dlog(a(1)+1d-10)
+                  yarr(k,ipart) = a(3)+rescale_fac*a(4)
+                  k=k+1
+               endif
+               xarr(k,ipart) = 0.5d0* ( dlog(a(1)+1d-10) + dlog(a(2)) )
+               yarr(k,ipart) = a(3)+rescale_fac*a(4)
+               k=k+1
+            endif
+         enddo
+         narr(ipart)=k
+         
+         if(ebeam_testplot) then
+            write (filename, "(A24,I1,A4)") "../../../Cards/ebeampdf-", ipart,".dat"
+            open(unit=250,file=trim(filename),status='unknown')
+            do i=1,100000
+               E = xarr(1,ipart) + ran1(iseed)*(xarr(narr(ipart),ipart)-xarr(1,ipart))
+               call locate(xarr(1,ipart),narr(ipart),E,j)
+               if (j+1>narr(ipart)) then
+                  j=narr(ipart)-1
+               endif
+               call polint(xarr(j,ipart),yarr(j,ipart),2,E,fitvalue,dy)
+               write(250,*) exp(E), fitvalue
+            enddo
+            close(250)
+         endif
+
+      enddo
+
+      
+      return
+      
+ 999  write(*,*) 'Cannot open input data file, exit!'
+      call exit(-1)
+      end
+
+
       subroutine init_ebeampdf_spline(ipdg)
+***   Read the data table for phitilde(E) and load the 1D hist ***  
+      implicit none
+      include 'fit2D.inc'
+      include 'ebeampdf_fit.inc' 
+      integer npart,ipart
+      parameter(npart=3)
+      integer narr(npart),nmax,i,k,ios,iun(npart),ipdg(npart),nfit,j
+      parameter (nmax=1000)
+      double precision xarr(nmax,npart),yarr(nmax,npart),dy2arr(nmax,npart),fitvalue,dy,a(4)
+      double precision E,xx(nmax),x(3),y(3)
+      common/ebeampdf_fit_common/xarr,yarr,narr
+      common/ebeampdf_fit_spline/dy2arr
+      real ran1
+      external ran1
+      integer iseed
+      data iseed /10/
+      character *50 filename
+
+      ipdg = -999999999
+
+      nfit = 0
+      open(unit=200,file='../../../../EbeamPdfFit/ehist_electron_pdf.dat',status='old',
+     $     iostat=ios)
+      if (ios.gt.0) then
+         continue
+      else
+         nfit = nfit+1
+         iun(nfit) = 200
+         ipdg(nfit) = 11 
+      endif
+      open(unit=210,file='../../../../EbeamPdfFit/ehist_positron_pdf.dat',status='old',
+     $     iostat=ios)
+      if (ios.gt.0) then
+         continue
+      else
+         nfit = nfit+1
+         iun(nfit) = 210
+         ipdg(nfit) = -11 
+      endif
+      open(unit=220,file='../../../../EbeamPdfFit/ehist_gamma_pdf.dat',status='old',
+     $     iostat=ios)
+      if (ios.gt.0) then
+         continue
+      else
+         nfit = nfit+1
+         iun(nfit) = 220
+         ipdg(nfit) = 22 
+      endif
+      
+      do ipart=1,nfit
+         k=1
+         do 
+            read(iun(ipart),*,iostat=ios) (a(i), i=1,4)
+            if (ios.gt.0) then
+               write(*,*) 'Something wrong in reading ebeampdf
+     $table! Exit!'
+               write(*,*) (a(i), i=1,4)
+               call exit(-1)
+            else if (ios.lt.0) then
+               xarr(k,ipart) = dlog(a(2))
+               yarr(k,ipart) = 0d0
+               close(iun(ipart))
+               exit
+            else
+               if(k==1) then
+                  xarr(k,ipart) = dlog(a(1)+1d-10)
+                  yarr(k,ipart) = a(3)+rescale_fac*a(4)
+                  k=k+1
+               endif
+               xarr(k,ipart) = 0.5d0* ( dlog(a(1)+1d-10) + dlog(a(2)) )
+               yarr(k,ipart) = a(3)+rescale_fac*a(4)
+               k=k+1
+            endif
+         enddo
+         narr(ipart)=k
+         
+         call spline(xarr(1,ipart),yarr(1,ipart),narr(ipart),1d99,1d99,dy2arr(1,ipart))
+         if(ebeam_testplot) then
+            write (filename, "(A24,I1,A4)") "../../../Cards/ebeampdf-", ipart,".dat"
+            open(unit=250,file=trim(filename),status='unknown')
+            do i=1,100000
+               E = xarr(1,ipart) + ran1(iseed)*(xarr(narr(ipart),ipart)-xarr(1,ipart))
+               call spline_int(xarr(1,ipart),yarr(1,ipart),dy2arr(1,ipart),narr(ipart),E,fitvalue)
+               write(250,*) exp(E), fitvalue
+            enddo
+            close(250)
+         endif
+
+      enddo
+
+      
+      return
+      
+ 999  write(*,*) 'Cannot open input data file, exit!'
+      call exit(-1)
+      end
+      
+
+      
+
+      subroutine init_ebeampdf_spline_old(ipdg)
 ***   Read the data table for the ebeam pdf and perform the 1D fit ***  
       implicit none
       include 'fit2D.inc'
@@ -662,7 +883,7 @@ c     init parameters for bi-splines fitting
       xe(ipart)=max                       !xman range
       kx(ipart)=3                         !x spline order
       s = n                     !smoothing parameter
-      nxest = n/2        
+      nxest = n+kx(ipart)+1 !n/2        
       lwrk = n*(kx(ipart)+1)+nxest*(7+3*kx(ipart))
 
 c     curve fitting using the FITPACK by Dierckx
@@ -689,3 +910,145 @@ c     evaluate the spline interpolation
  999  write(*,*) 'Cannot open input data file, exit!'
       call exit(-1)
       end
+
+
+cz  subroutine POLINT that is printed in Numerical Recipes.
+      SUBROUTINE POLINT (XA,YA,N,X,Y,DY)
+      IMPLICIT DOUBLE PRECISION (A-H, O-Z)
+C     Adapted from "Numerical Recipes" 
+      PARAMETER (NMAX=10)
+      DIMENSION XA(N),YA(N),C(NMAX),D(NMAX)
+      NS=1
+      DIF=ABS(X-XA(1))
+      DO 11 I=1,N
+        DIFT=ABS(X-XA(I))
+        IF (DIFT.LT.DIF) THEN
+          NS=I
+          DIF=DIFT
+        ENDIF
+        C(I)=YA(I)
+        D(I)=YA(I)
+11    CONTINUE
+      Y=YA(NS)
+      NS=NS-1
+      DO 13 M=1,N-1
+        DO 12 I=1,N-M
+          HO=XA(I)-X
+          HP=XA(I+M)-X
+          W=C(I+1)-D(I)
+          DEN=HO-HP
+          IF(DEN.EQ.0.)PAUSE
+          DEN=W/DEN
+          D(I)=HP*DEN
+          C(I)=HO*DEN
+12      CONTINUE
+        IF (2*NS.LT.N-M)THEN
+          DY=C(NS+1)
+        ELSE
+          DY=D(NS)
+          NS=NS-1
+        ENDIF
+        Y=Y+DY
+13    CONTINUE
+      RETURN
+      END
+
+      SUBROUTINE locate(xx,n,x,j)
+      INTEGER j,n
+      double precision x,xx(n)
+c      Given an array xx(1:n), and given a value x, returns a value j such that x is between
+c      xx(j) and xx(j+1). xx(1:n) must be monotonic, either increasing or decreasing. j=0 or j=n is returned to indicate that x is out of range.
+      INTEGER jl,jm,ju
+c      write(*,*) xx,'locate'
+c      write(*,*) n,x,'locate'
+      jl=0 
+      ju=n+1 
+ 10   if(ju-jl.gt.1)then
+         jm=(ju+jl)/2 
+         if((xx(n).ge.xx(1)).eqv.(x.ge.xx(jm))) then
+            jl=jm 
+         else
+            ju=jm 
+         endif
+         goto 10 
+      endif 
+      if(x.eq.xx(1)) then 
+         j=1
+      else if(x.eq.xx(n)) then
+         j=n-1
+      else
+         j=jl
+      endif
+      return 
+      END
+
+      SUBROUTINE spline(x,y,n,yp1,ypn,y2)
+      INTEGER n,NMAX
+      double precision yp1,ypn,x(n),y(n),y2(n)
+      PARAMETER (NMAX=500)
+c$$$      Given arrays x(1:n) and y(1:n) containing a tabulated function, i.e., yi = f(xi), with
+c$$$      x1 < x2 < ... < xN , and given values yp1 and ypn for the first derivative of the interpolating
+c$$$      function at points 1 and n, respectively, this routine returns an array y2(1:n) of
+c$$$      length n which contains the second derivatives of the interpolating function at the tabulated
+c$$$      points xi. If yp1 and/or ypn are equal to 1 × 1030 or larger, the routine is signaled to set
+c$$$      the corresponding boundary condition for a natural spline, with zero second derivative on
+c$$$      that boundary.
+c$$$  Parameter: NMAX is the largest anticipated value of n.
+      INTEGER i,k
+      double precision p,qn,sig,un,u(NMAX)
+      if (yp1.gt..99e30) then 
+         y2(1)=0d0
+         u(1)=0d0
+      else 
+         y2(1)=-0.5d0
+         u(1)=(3./(x(2)-x(1)))*((y(2)-y(1))/(x(2)-x(1))-yp1)
+      endif
+      do i=2,n-1 
+         sig=(x(i)-x(i-1))/(x(i+1)-x(i-1))
+         p=sig*y2(i-1)+2.
+         y2(i)=(sig-1.)/p
+         u(i)=( 6d0*( ( y(i+1)-y(i) ) / ( x(i+1)-x(i) ) -( y(i)-y(i-1) )
+     .        / ( x(i)-x(i-1) ) ) / ( x(i+1)-x(i-1) )- sig*u(i-1) )/p
+      enddo
+      if (ypn.gt..99e30) then 
+         qn=0d0
+         un=0d0
+      else 
+         qn=0.5d0
+         un=(3./(x(n)-x(n-1)))*(ypn-(y(n)-y(n-1))/(x(n)-x(n-1)))
+      endif
+      y2(n)=(un-qn*u(n-1))/(qn*y2(n-1)+1.)
+      do k=n-1,1,-1 
+         y2(k)=y2(k)*y2(k+1)+u(k)
+      enddo 
+      return
+      END      
+
+      SUBROUTINE spline_int(xa,ya,y2a,n,x,y)
+      INTEGER n
+      double precision x,y,xa(n),y2a(n),ya(n)
+c$$$      Given the arrays xa(1:n) and ya(1:n) of length n, which tabulate a function (with the
+c$$$      xai ’s in order), and given the array y2a(1:n), which is the output from spline above,
+c$$$      and given a value of x, this routine returns a cubic-spline interpolated value y.
+      integer k,khi,klo
+      double precision a,b,h
+      klo=1
+      khi=n
+ 1    if (khi-klo.gt.1) then
+         k=(khi+klo)/2
+         if(xa(k).gt.x)then
+            khi=k
+         else
+            klo=k
+         endif
+         goto 1
+      endif 
+      h=xa(khi)-xa(klo)
+      if (h.eq.0.) pause 'bad xa input in splin'
+      a=(xa(khi)-x)/h 
+      b=(x-xa(klo))/h
+      y=a*ya(klo)+b*ya(khi)+
+     .     ((a**3-a)*y2a(klo)+(b**3-b)*y2a(khi))*(h**2)/6.
+      return
+      END      
+      
