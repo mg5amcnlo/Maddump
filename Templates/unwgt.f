@@ -433,20 +433,25 @@ c     histograms flux. The azimuthal angle is set at random.
             rv(2)=ran1(iseed+1)
             if (.not. ebeampdf) then
                call picktheta(E,rv,theta)
+               rv(1)=ran1(iseed+2)
+               rv(2)=ran1(iseed+2)
+               if(cylinder) then
+                  phi = 2d0*pi*rv(1)
+               elseif (parallelepiped) then
+                  call pickphi(theta,rv,phi)
+               endif
+
+               travel_dist = max_travel_distance(theta,dcos(phi),dsin(phi))
+     &              *ran1(iseed+3)
+               
             else
+
                call ebeam_picktheta(E,rv,theta,jpart(1,isym(1,jsym)))
+               rv(1)=ran1(iseed+2)
+               rv(2)=ran1(iseed+2)
+               phi = 2d0*pi*rv(1)
             endif
             
-            rv(1)=ran1(iseed+2)
-            rv(2)=ran1(iseed+2)
-            if(cylinder) then
-               phi = 2d0*pi*rv(1)
-            elseif (parallelepiped) then
-               call pickphi(theta,rv,phi)
-            endif
-
-            travel_dist = max_travel_distance(theta,dcos(phi),dsin(phi))
-     &           *ran1(iseed+3)
             
 c start debug ---            
 c            write(230,*) theta,dcos(phi),dsin(phi)
