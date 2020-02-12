@@ -178,7 +178,7 @@ c      if (.true.) then
       implicit none
       include 'fit2D.inc'
       integer nbin,nmax,i,k,ios
-      parameter (nmax=1000)
+      parameter (nmax=100000)
       double precision edges(nmax),hist(nmax),errhist(nmax),a(4),min
       common/fit_hist/nbin,edges,hist,errhist
       
@@ -221,11 +221,11 @@ c      if (.true.) then
       include 'fit2D.inc'
       integer ios
       integer nmax,n,i
-      parameter (nmax=1000) 
+      parameter (nmax=100000) 
       double precision x(nmax),y(nmax),w(nmax),a(4)
 c      common/phitilde_table/x,y,w,n
-      integer nxest,lwrk,iwrk(1000)
-      double precision s,min,max,xb,xe,fp,wrk(100000),resfac
+      integer nxest,lwrk,iwrk(100000)
+      double precision s,min,max,xb,xe,fp,wrk(1000000),resfac
       integer kx,nx,ier
       double precision tx(nmax),c(nmax)
       double precision E,fitvalue
@@ -333,7 +333,7 @@ c      if (.true.) then
       implicit none
       
       integer nbin,nmax,i,k,ia,ib
-      parameter (nmax=1000)
+      parameter (nmax=100000)
       double precision E,edges(nmax),hist(nmax),errhist(nmax),a(4)
       common/fit_hist/nbin,edges,hist,errhist     
 
@@ -371,9 +371,9 @@ c      if (.true.) then
       implicit none
       double precision E
       integer nmax,i
-      parameter (nmax=1000) 
+      parameter (nmax=100000) 
       integer kx,nx,ier
-      double precision tx(nmax),c(nmax),xe,xb,wrk(100000)
+      double precision tx(nmax),c(nmax),xe,xb,wrk(1000000)
       double precision norm,splint,resfac
       common/fit1dim/kx,nx,tx,c,xe,xb,wrk,resfac
       external splint
@@ -398,9 +398,9 @@ c     evaluate the spline interpolation
       include 'ebeampdf_fit.inc' 
       double precision x,E
       integer nmax,i,npart,pdg,ipart,j
-      parameter (nmax=1000,npart=3) 
+      parameter (nmax=100000,npart=3) 
       integer kx(npart),nx(npart),ier,ipdg(npart)
-      double precision tx(npart,nmax),c(npart,nmax),xe(npart),xb(npart),wrk(npart,100000)
+      double precision tx(npart,nmax),c(npart,nmax),xe(npart),xb(npart),wrk(npart,1000000)
       double precision norm,splint,resfac(npart)
       common/ebeamfit1dim/kx,nx,tx,c,xe,xb,wrk,resfac
       external splint
@@ -507,7 +507,7 @@ c$$$         endif
       integer npart,ipart
       parameter(npart=3)
       integer nbin(npart),nmax,i,k,ios,iun(npart),ipdg(npart),nfit
-      parameter (nmax=1000)
+      parameter (nmax=100000)
       double precision edges(npart,nmax),hist(npart,nmax),errhist(npart,nmax),a(4)
       common/ebeampdf_fit_hist/nbin,edges,hist,errhist
 
@@ -581,7 +581,7 @@ c$$$         endif
       integer npart,ipart
       parameter(npart=3)
       integer narr(npart),nmax,i,k,ios,iun(npart),ipdg(npart),nfit,j
-      parameter (nmax=1000)
+      parameter (nmax=100000)
       double precision xarr(nmax,npart),yarr(nmax,npart),fitvalue,dy,a(4)
       double precision E,xx(nmax),x(3),y(3)
       common/ebeampdf_fit_common/xarr,yarr,narr
@@ -682,7 +682,7 @@ c$$$         endif
       integer npart,ipart
       parameter(npart=3)
       integer narr(npart),nmax,i,k,ios,iun(npart),ipdg(npart),nfit,j
-      parameter (nmax=1000)
+      parameter (nmax=100000)
       double precision xarr(nmax,npart),yarr(nmax,npart),dy2arr(nmax,npart),fitvalue,dy,a(4)
       double precision E,xx(nmax),x(3),y(3)
       common/ebeampdf_fit_common/xarr,yarr,narr
@@ -784,11 +784,11 @@ c$$$         endif
       include 'maxamps.inc'
       integer ios,ipart,nfit
       integer nmax,n,i,npart
-      parameter (nmax=1000,npart=3) 
+      parameter (nmax=100000,npart=3) 
       double precision x(npart,nmax),y(npart,nmax),w(npart,nmax),a(4)
 c      common/phitilde_table/x,y,w,n
-      integer nxest,lwrk,iwrk(1000),iun(npart),ipdg(npart)
-      double precision s,min,max,xb(npart),xe(npart),fp,wrk(npart,100000),resfac(npart)
+      integer nxest,lwrk,iwrk(100000),iun(npart),ipdg(npart)
+      double precision s,min,max,xb(npart),xe(npart),fp,wrk(npart,1000000),resfac(npart)
       integer kx(npart),nx(npart),ier
       double precision tx(npart,nmax),c(npart,nmax)
       double precision E,fitvalue
