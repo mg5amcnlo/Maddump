@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from distutils import dir_util
 import os
 from madgraph.iolibs.files import cp, ln, mv
@@ -8,9 +9,10 @@ import madgraph.various.misc as misc
 import madgraph.various.banner as banner_mod
 import madgraph.iolibs.group_subprocs as group_subprocs
 
-import fit2D_card as fit2D
-import bremsstrahlung_card as bremsstrahlung
-import ebeampdffit_card as ebeampdffit
+from . import fit2D_card as fit2D
+from . import bremsstrahlung_card as bremsstrahlung
+from . import ebeampdffit_card as ebeampdffit
+from six.moves import zip
 
 pjoin = os.path.join
 

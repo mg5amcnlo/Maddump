@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import print_function
 from copy import copy, deepcopy
 import numpy as np
 from scipy.interpolate import splrep,splint,interp1d
@@ -5,10 +7,12 @@ from scipy.optimize import bisect
 from random import randint, random
 import multiprocessing
 import os 
+from six.moves import range
+from six.moves import zip
 
 pjoin = os.path.join
 
-import fit2D_card as fit2D
+from . import fit2D_card as fit2D
 import madgraph.various.banner as banner_mod
 import madgraph.various.lhe_parser as lhe_parser
 
@@ -1283,7 +1287,7 @@ class fit2D_energy_theta(CellHistogram):
             if cells[a,0] < x and cells[b,0] > x:
                 i=a
             else:
-                print('get_prob error 1',x,cells[a,0],cells[b,0])
+                print(('get_prob error 1',x,cells[a,0],cells[b,0]))
                 return 0.
 
             tmp=np.transpose(np.array([cells[:i+1,0],cells[:i+1,1],cells[:i+1,0]+cells[:i+1,2],cells[:i+1,3]]))
@@ -1305,7 +1309,7 @@ class fit2D_energy_theta(CellHistogram):
             if tmp[a,2] < y and tmp[b,2] > y:
                 i=b
             else:
-                print('get_prob error 2',y,tmp[a,2],tmp[b,2])
+                print(('get_prob error 2',y,tmp[a,2],tmp[b,2]))
                 return 0.
 
             selected_cells = np.transpose(np.array([tmp[i:,0],tmp[i:,1],tmp[i:,2],tmp[i:,3]]))

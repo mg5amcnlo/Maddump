@@ -8,8 +8,9 @@
 
 #if '__main__' == __name__:
 
-import maddump as mdd
-import new_interface.maddump_interface as maddump_interface
+from __future__ import absolute_import
+from . import maddump as mdd
+from . import new_interface.maddump_interface as maddump_interface
 
 # 1. Define new output mode
 #    example: new_output = {'myformat': MYCLASS}

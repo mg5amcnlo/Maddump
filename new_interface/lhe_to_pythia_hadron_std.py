@@ -3,6 +3,8 @@
 #     sys.path.append('../../../../')
 #     sys.path.append('../../../../madgraph/various')
 
+from __future__ import absolute_import
+from __future__ import print_function
 import madgraph.various.lhe_parser as lhe_parser
 import numpy as np
 import random as random

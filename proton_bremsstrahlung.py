@@ -1,3 +1,6 @@
+from __future__ import absolute_import
+from __future__ import print_function
+from six.moves import range
 if '__main__' == __name__:
     import sys
     sys.path.append('../../')
@@ -8,10 +11,10 @@ import cmath
 import os
 import matplotlib.pyplot as plt
 from scipy.integrate import quad, dblquad
-from meshfitter2D import *
+from .meshfitter2D import *
 import multiprocessing
-import fit2D_card as fit2D
-import bremsstrahlung_card as bremss
+from . import fit2D_card as fit2D
+from . import bremsstrahlung_card as bremss
 import models.check_param_card as param_card_mod
 
 class fit2D_z_pt2(CellHistogram):

@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import print_function
 import os
 
 import madgraph.various.misc as misc
@@ -11,10 +13,11 @@ import logging
 #import MadSpin.decay as decay
 import madgraph.iolibs.save_load_object as save_load_object
 import MadSpin.interface_madspin as interface_madspin
-import lhe_to_pythia_hadron_std as lheToPythia
-import displaced_decay as displ_decay
+from . import lhe_to_pythia_hadron_std as lheToPythia
+from . import displaced_decay as displ_decay
 from .. import proton_bremsstrahlung as prt_bremss
 from .. import ebeampdf_fit as ebeampdf
+from six.moves import range
 
 pjoin = os.path.join
 logger = logging.getLogger('madgraph.plugin.maddump')
@@ -459,7 +462,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
                 hist2D_energy_angle = meshfitter.fit2D_energy_theta(self.proc_characteristics, \
                                                 'unweighted_events.lhe.gz',interaction_channel)
                 if hist2D_energy_angle.npass < 100:
-                    raise Exception, "Error: numbers of events entering the detector too small! n_passed = %s " % hist2D_energy_angle.npass
+                    raise Exception("Error: numbers of events entering the detector too small! n_passed = %s " % hist2D_energy_angle.npass)
                 hist2D_energy_angle.do_fit()
                 if fit2D_card['fit_syst']:
                     hist2D_energy_angle.check_consistency()
@@ -491,7 +494,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
                 try:
                     files.mv(pjoin(run_dir,'unweighted_events.lhe.gz'), pjoin(run_dir,'unweighted_events'+'_'+interaction_channel+'.lhe.gz'))
                 except:
-                    raise Exception, 'Error: events file not generated!'
+                    raise Exception('Error: events file not generated!')
             
             # for DIS, generate the LHE events to be showered by Pythia
             #if interaction_channel == 'DIS': 
@@ -524,7 +527,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
                 results = save_load_object.load_from_file(pjoin(path,'HTML','results.pkl'))
                 return results[run_name][0]
             except:
-                raise Exception, "Error: no results!"
+                raise Exception("Error: no results!")
         
     def store_scan_result(self):
         return self.results#{'cross (pb)': 1e-5} #self.store_results
@@ -583,7 +586,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
             elif path == 'MadLoopParams.dat':
                 return 'MadLoopParams'
             else:
-                raise Exception, 'Unknow cards name %s' % path
+                raise Exception('Unknow cards name %s' % path)
 
         # Ask the user if he wants to edit any of the files
         #First create the asking text
@@ -698,9 +701,9 @@ class MADDUMPRunCmd(cmd.CmdShell):
         for infile in listdir:
             label,ext = os.path.splitext(infile)
             if ext in ['.lhe','.hepmc']:  
-                print label
+                print(label)
                 if  label in labels:
-                    print 'do fit: it takes some minutes '
+                    print('do fit: it takes some minutes ')
                     with misc.chdir(ebeampdf_dir):
                         hist2D_ebeamfit =  ebeampdf.fit2D_ebeampdf(infile,label)
                         do_1dfit = True
@@ -755,8 +758,8 @@ class MadDumpSelector(common_run.AskforEditCard):
             files.cp(self.paths['maddump_default'], 'Cards')
             self.maddump = fit2D.Fit2DCard('Cards')
             
-        self.maddump_set = list(set(self.maddump_def.keys() + self.maddump_def.hidden_param))
-        return self.maddump.keys() 
+        self.maddump_set = list(set(list(self.maddump_def.keys()) + self.maddump_def.hidden_param))
+        return list(self.maddump.keys()) 
 
     def init_bremsstrahlung(self, path):
         """ initialize cards for the reading/writing of maddump"""
@@ -770,8 +773,8 @@ class MadDumpSelector(common_run.AskforEditCard):
             files.cp(self.paths['maddump_default'], 'Cards')
             self.maddump_bremss = bremsstrahlung.BremsstrahlungCard('Cards')
             
-        self.maddump_bremss_set = list(set(self.maddump_bremss_def.keys() + self.maddump_bremss_def.hidden_param))
-        return self.maddump_bremss.keys() 
+        self.maddump_bremss_set = list(set(list(self.maddump_bremss_def.keys()) + self.maddump_bremss_def.hidden_param))
+        return list(self.maddump_bremss.keys()) 
 
 
     def init_ebeampdf_fit(self, path):
@@ -786,8 +789,8 @@ class MadDumpSelector(common_run.AskforEditCard):
             files.cp(self.paths['maddump_default'], 'Cards')
             self.maddump_ebeam = ebeampdf_card.EbeamPdfFitCard('Cards')
             
-        self.maddump_ebeam_set = list(set(self.maddump_ebeam_def.keys() + self.maddump_ebeam_def.hidden_param))
-        return self.maddump_ebeam.keys() 
+        self.maddump_ebeam_set = list(set(list(self.maddump_ebeam_def.keys()) + self.maddump_ebeam_def.hidden_param))
+        return list(self.maddump_ebeam.keys()) 
 
 
     

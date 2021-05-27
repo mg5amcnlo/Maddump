@@ -1,7 +1,9 @@
+from __future__ import absolute_import
+from __future__ import print_function
 import logging
 import os
 
-import maddump_run_interface as maddump_run_interface
+from . import maddump_run_interface as maddump_run_interface
 #import madgraph.core.diagram_generation as diagram_generation
 
 import madgraph.interface.master_interface as master_interface
@@ -21,6 +23,8 @@ from .. import bremsstrahlung_card as bremss
 from .. import ebeampdffit_card as ebeampdf
 
 import re
+from six.moves import range
+from six.moves import input
 pjoin = os.path.join
 
 logger = logging.getLogger('madgraph.plugin.maddump')
@@ -58,7 +62,7 @@ class MadDump_interface(master_interface.MasterCmd):
     _define_options = ['darkmatter','decay_channel','bremsstrahlung','electron_beam_dump']
     _importevts_options = ['decay','interaction']
     _ebeamdict = {'electron_pdf': 0, 'positron_pdf': 1, 'gamma_pdf': 2} 
-    _importevts_options += _ebeamdict.keys()
+    _importevts_options += list(_ebeamdict.keys())
     
     # process number to distinguish the different type of matrix element
     process_tag = {'prod': 100,
@@ -99,18 +103,18 @@ class MadDump_interface(master_interface.MasterCmd):
                 if len(args)==2:
                     self._dm_candidate = [self._curr_model.get_particle(args[1])]
                     if not self._dm_candidate[0]:
-                        raise DMError, '%s is not a valid particle for the model.' % args[1] 
+                        raise DMError('%s is not a valid particle for the model.' % args[1]) 
                     # self.update_model_with_EFT()
                 else:
-                    raise DMError, 'The user must supply a dark matter candidate!'
+                    raise DMError('The user must supply a dark matter candidate!')
             elif args[0] == 'bremsstrahlung':
                 if len(args)==2:
                     self._dm_bremsstrahlung = [self._curr_model.get_particle(args[1])]
                     if not self._dm_candidate[0]:
-                        raise DMError, '%s is not a valid particle for the model.' % args[1] 
+                        raise DMError('%s is not a valid particle for the model.' % args[1]) 
                     # self.update_model_with_EFT()
                 else:
-                    raise DMError, 'The user must supply a dark matter candidate!'
+                    raise DMError('The user must supply a dark matter candidate!')
             elif args[0] == 'electron_beam_dump':
                 self._ebeamdump_mode = True 
             # elif args[0] == 'decay_channel':
@@ -177,14 +181,14 @@ class MadDump_interface(master_interface.MasterCmd):
         if 'decay' in args:
             args.pop(0)
             if not os.path.isfile(args[0]):
-                raise DMError, 'Invalid path: the file does not exist!'                
+                raise DMError('Invalid path: the file does not exist!')                
             if not any( [ext in args[0] for ext in ['hepmc','lhe']]):
-                raise DMError, 'Invalid events file name: it must contain the hepmc or lhe extension!'
+                raise DMError('Invalid events file name: it must contain the hepmc or lhe extension!')
             if not self._evts_inputfile_todecay:
                 self._evts_inputfile_todecay.append(args[0])
             else:
                 while(1):
-                    answ = raw_input ('Events file to decay already loaded. Do you want to overwrite it? [y/n] ')
+                    answ = input ('Events file to decay already loaded. Do you want to overwrite it? [y/n] ')
                     if answ == 'y':
                         self._evts_inputfile_todecay[0] = args[0]
                         break 
@@ -197,14 +201,14 @@ class MadDump_interface(master_interface.MasterCmd):
         if 'interaction' in args:
             args.pop(0)
             if not os.path.isfile(args[0]):
-                raise DMError, 'Invalid path: the file does not exist!'                
+                raise DMError('Invalid path: the file does not exist!')                
             if not any( [ext in args[0] for ext in ['hepmc','lhe']]):
-                raise DMError, 'Invalid events file name: it must contain the hepmc or lhe extension!'
+                raise DMError('Invalid events file name: it must contain the hepmc or lhe extension!')
             if not self._evts_inputfile_tointeract:
                 self._evts_inputfile_tointeract.append(args[0])
             else:
                 while(1):
-                    answ = raw_input ('Events file to decay already loaded. Do you want to overwrite it? [y/n] ')
+                    answ = input ('Events file to decay already loaded. Do you want to overwrite it? [y/n] ')
                     if answ == 'y':
                         self._evts_inputfile_tointeract[0] = args[0]
                         break 
@@ -218,14 +222,14 @@ class MadDump_interface(master_interface.MasterCmd):
             if key in line:
                 args.pop(0)
                 if not os.path.isfile(args[0]):
-                    raise DMError, 'Invalid path: the file does not exist!'                
+                    raise DMError('Invalid path: the file does not exist!')                
                 if not any( [ext in args[0] for ext in ['hepmc','lhe']]):
-                    raise DMError, 'Invalid events file name: it must contain the hepmc or lhe extension!'
+                    raise DMError('Invalid events file name: it must contain the hepmc or lhe extension!')
                 if not self._evts_inputfile_ebeampdf[self._ebeamdict[key]]:
                     self._evts_inputfile_ebeampdf[self._ebeamdict[key]] = args[0]
                 else:
                     while(1):
-                        answ = raw_input ('Events file to decay already loaded. Do you want to overwrite it? [y/n] ')
+                        answ = input ('Events file to decay already loaded. Do you want to overwrite it? [y/n] ')
                         if answ == 'y':
                             self._evts_inputfile_ebeampdf[self._ebeamdict[key]] = args[0]
                             break 
@@ -266,13 +270,13 @@ class MadDump_interface(master_interface.MasterCmd):
             if key in line:
                 args.pop(0)
                 if not os.path.isfile(args[0]):
-                    raise DMError, 'Invalid path: the file does not exist!'
+                    raise DMError('Invalid path: the file does not exist!')
                 
                 if not self._inputfile_ebeampdf[self._ebeamdict[key]]:
                     self._inputfile_ebeampdf[self._ebeamdict[key]] = args[0]
                 else:
                     while(1):
-                        answ = raw_input ('Grid file for '+key+' already loaded. Do you want to overwrite it? [y/n] ')
+                        answ = input ('Grid file for '+key+' already loaded. Do you want to overwrite it? [y/n] ')
                         if answ == 'y':
                             self._inputfile_ebeampdf[self._ebeamdict[key]] = args[0]
                             break 
@@ -349,7 +353,7 @@ class MadDump_interface(master_interface.MasterCmd):
                 try:
                     dm_candidate = self._dm_candidate[-1]['name']
                 except:
-                    raise DMError, 'Please define a valid dark matter candidate!'
+                    raise DMError('Please define a valid dark matter candidate!')
                 int_proc = {'DIS' : 'process ' +  dm_candidate + ' p > ' + dm_candidate + ' p ' + excluded + ' @DIS',
                         'electron' : 'process ' + dm_candidate + ' e- > ' + dm_candidate + ' e- ' + excluded + ' @electron',
                         'ENS' : 'work in progress'}
@@ -367,14 +371,14 @@ class MadDump_interface(master_interface.MasterCmd):
 #                self._particle_todisplaced = [self._curr_model.get_particle(args[1])]
                 self._particle_todisplaced.append(self._curr_model.get_particle(args[1]))
                 if not self._particle_todisplaced[0]:
-                    raise DMError, '%s is not a valid particle for the model.' % args[1] 
+                    raise DMError('%s is not a valid particle for the model.' % args[1]) 
             else:
-                raise DMError, 'The user must supply a valid particle to displaced!'
+                raise DMError('The user must supply a valid particle to displaced!')
             return
         else:
             if '@' in line:
                 line = re.sub(r'''(?<=@)(%s\b)''' % '\\b|'.join(self.process_tag), 
-                              lambda x: `self.process_tag[x.group(0)]`, line)
+                              lambda x: repr(self.process_tag[x.group(0)]), line)
             #self.n +=1
             return super(MadDump_interface, self).do_add(line)
 
@@ -427,16 +431,16 @@ class MadDump_interface(master_interface.MasterCmd):
 
         if not self._curr_amps:
             if (not self._particle_todisplaced) and (not self._dm_bremsstrahlung):
-                raise DMError, 'No valid process to output!'
+                raise DMError('No valid process to output!')
         
         args = self.split_arg(line)
 
         if len(args)>1:
-            raise DMError, 'Output command error: too many options!'
+            raise DMError('Output command error: too many options!')
         
         for arg in args:
             if arg in self._export_formats:
-                raise DMError, 'Standard madgraph options are not allowed inside the maddump interface!'
+                raise DMError('Standard madgraph options are not allowed inside the maddump interface!')
 
         if not args:
             not_created = True
@@ -455,7 +459,7 @@ class MadDump_interface(master_interface.MasterCmd):
             try:
                 os.makedirs(self._out_dir)
             except:
-                raise DMError, 'Output command error: the directory %s already exists!' % self._out_dir 
+                raise DMError('Output command error: the directory %s already exists!' % self._out_dir) 
 
 
         #create a directory for common cards: param_card and fit2D_card
@@ -482,7 +486,7 @@ class MadDump_interface(master_interface.MasterCmd):
         #Bremsstrahlung
         if self._dm_bremsstrahlung:
             if len(self._dm_bremsstrahlung) > 1:
-                raise DMError, 'Multiple choice for the bremsstrahlung particle is not implemented!' 
+                raise DMError('Multiple choice for the bremsstrahlung particle is not implemented!') 
             bremsstrahlung_dir = pjoin(self._out_dir, 'Bremsstrahlung_Events')
             os.makedirs(bremsstrahlung_dir)
             self.write_madspin_card(cards_dir,bremsstrahlung_dir,bremsstrahlung=True)
@@ -599,7 +603,7 @@ class MadDump_interface(master_interface.MasterCmd):
                     
             elif proc['id'] not in old_id:
                 self._curr_matrix_elements = helas_objects.HelasMultiProcess()
-                processes_list = self.process_tag.keys()
+                processes_list = list(self.process_tag.keys())
                 for process in processes_list:
                     if self.process_tag[process] == proc['id']:
                         channel = process

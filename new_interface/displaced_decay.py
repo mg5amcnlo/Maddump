@@ -5,6 +5,8 @@
 #     sys.path.append('../../../../models')
 
 
+from __future__ import absolute_import
+from __future__ import print_function
 import models.check_param_card as param_card_mod
 import numpy as np
 import random
@@ -12,6 +14,7 @@ import copy
 
 import madgraph.various.lhe_parser as lhe_parser
 import madgraph.various.misc as misc
+from six.moves import range
 
 class displaced_decay():
 
@@ -130,7 +133,7 @@ class displaced_decay():
         else:
             cphi = 0.
             sphi = 0.
-            print "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ Theta $$$$$$$$$$$$$$$$$$$$$$ = 0 " 
+            print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ Theta $$$$$$$$$$$$$$$$$$$$$$ = 0 ") 
         theta = np.arccos(ctheta)
         l1,l2 = self.travel_distance(p,theta,cphi,sphi,imoth)
 
@@ -142,7 +145,7 @@ class displaced_decay():
         gamma = p.E/self.mass[imoth]
         Lambda =  gamma*beta*self.hbar_times_c/self.width[imoth]
         if Lambda == 0.:
-            print(gamma,beta)
+            print((gamma,beta))
         if (l1/Lambda>300.):
             self.vertices[imoth].append([-1.,-1.,-1.])            
             return 0.,-1.
