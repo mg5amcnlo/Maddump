@@ -130,7 +130,7 @@ class fit2D_z_pt2(CellHistogram):
         H = pt2 + (1.-z)*self.mV2 + z**2*self.mp2
         return kV/(2.*np.pi*H) * ( (1.+(1.-z)**2)/z
                         -2.*z*(1.-z)*( (2.*self.mp2+self.mV2)/H - z**2*2.*self.mp2**2/H**2 )
-                        +2.*z*(1.-z)*(z+(1.-z)**2)*self.mp2*self.mV2/H**2
+                        +2.*z*(1.-z)*(1.+(1.-z)**2)*self.mp2*self.mV2/H**2
                         +2.*z*(1.-z)**2*self.mV2**2/H**2 )
 
     def F1p2(self,q2):
@@ -197,7 +197,7 @@ class fit2D_z_pt2(CellHistogram):
         return (F1p*F1p.conjugate()).real
 
 
-    def sig_pp(self,s,z,pt2):
+    def sig_pp(self,s):
         Z = 35.45 
         B = 0.308
         Y1 = 42.53
@@ -212,7 +212,7 @@ class fit2D_z_pt2(CellHistogram):
 
     def dnV_dzdpt2(self,z,pt2,mV2):
         Ep = self.P + self.mp2/2./self.P
-        return self.sig_pp(2.*np.sqrt(self.mp2)* (Ep-z*self.P-(pt2+mV2)/(2.*z*self.P) ),z,pt2 ) / self.sig_pp(2.*np.sqrt(self.mp2)*Ep,z,pt2) * self.F1p2(mV2) *self.wba(z,pt2)
+        return self.sig_pp(2.*np.sqrt(self.mp2)* (Ep-z*self.P-(pt2+mV2)/(2.*z*self.P) )) / self.sig_pp(2.*np.sqrt(self.mp2)*Ep) * self.F1p2(mV2) *self.wba(z,pt2)
 
     def nV(self):
         res = dblquad(lambda pt2,z: self.dnV_dzdpt2(z,pt2,self.mV2), self.zmin, self.zmax, lambda pt2: self.pt2min, lambda pt2: self.pt2max )
