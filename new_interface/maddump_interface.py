@@ -337,7 +337,7 @@ class MadDump_interface(master_interface.MasterCmd):
         #  plugin.  
         elif len(args) and args[0] == 'interaction':
             args.pop(0)            
-            if'@' in line:
+            if ('@' in line) and ('>' not in line):
 # raise DMError, 'The user must supply a valid interaction channel!'
                 tag = re.search('(?<=@)\w+', line)
                 # print(tag.group(0))
@@ -350,16 +350,21 @@ class MadDump_interface(master_interface.MasterCmd):
                     dm_candidate = self._dm_candidate[-1]['name']
                 except:
                     raise DMError, 'Please define a valid dark matter candidate!'
+                
                 int_proc = {'DIS' : 'process ' +  dm_candidate + ' p > ' + dm_candidate + ' p ' + excluded + ' @DIS',
-                        'electron' : 'process ' + dm_candidate + ' e- > ' + dm_candidate + ' e- ' + excluded + ' @electron',
-                        'ENS' : 'work in progress'}
+                            'electron' : 'process ' + dm_candidate + ' e- > ' + dm_candidate + ' e- ' + excluded + ' @electron',
+                            'ENS' : 'work in progress'}
+                
                 self.do_add(int_proc[tag.group(0)])
+                
             else:
 
                 int_proc = 'process '
                 for i in range(len(args)):
                     int_proc += args[i]+' '
-                self.do_add(int_proc + ' @generic')
+                if '@' not in int_proc:
+                    int_proc += ' @generic'
+                self.do_add(int_proc)
 
         elif len(args) and args[0] == 'displaced_decay':
             if len(args)==2:
