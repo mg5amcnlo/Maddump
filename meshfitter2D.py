@@ -1066,6 +1066,8 @@ class fit2D_energy_theta(CellHistogram):
         theta_max = 0.
         npass = 0
         data = []
+        import madgraph.various.misc as misc 
+        misc.sprint('Loading LHE events from %s' % input_lhe_evts)
         lhe_evts = lhe_parser.EventFile(input_lhe_evts) 
         self.testplot = self.fit2D_card['testplot']
         if self.testplot:
@@ -1085,7 +1087,10 @@ class fit2D_energy_theta(CellHistogram):
         nevt=self.fit2D_card['nevts_norm']
         if nevt < 0:
             nevt = len(lhe_evts)
-        for event in lhe_evts:
+        lhe_evts.allow_empty_event = True
+        misc.sprint(id(lhe_evts), lhe_evts.allow_empty_event, type(lhe_evts))
+        for event in lhe_evts: 
+            #misc.sprin('in loop', lhe_evts.allow_empty_events)
             for particle in event:
                 if len(event) == 1:
                     if particle.status == 1:
@@ -1122,6 +1127,7 @@ class fit2D_energy_theta(CellHistogram):
                             theta_min = theta
                         if theta > theta_max:
                             theta_max = theta
+        misc.sprint('Total number of events after reweighting: %d' % npass)
         return npass,E_min,E_max,theta_min,theta_max,data
                             #print(E_min,theta_min,E_max,theta_max,len(data))
 

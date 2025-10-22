@@ -192,8 +192,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
         self.bremss = False
 
         interaction_dir_all = ['interaction_DIS','interaction_electron','interaction_ENS','interaction_generic']
-        listdir = subprocess.check_output("ls %s"%self.dir_path,shell=True).split()
-
+        listdir = os.listdir(self.dir_path)
         self.electron_beam_mode = False
         if 'EbeamPdfFit' in listdir:
             self.electron_beam_mode = True
@@ -284,7 +283,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
            
         if self.DMmode in ['decay_interaction','production_decay','decay_displaced']:
             decay_dir = pjoin(self.dir_path,'Events_to_decay')
-            listdir = subprocess.check_output("ls %s"%decay_dir,shell=True).split()
+            listdir = os.listdir(decay_dir)
             for file in listdir:
                 if any( [ext in file for ext in ['hepmc','lhe']]):
                     evts_file = file.replace('.hepmc','')
@@ -314,7 +313,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
             evt_dir = pjoin(decay_dir, 'Events',new_run)
 
             os.makedirs(evt_dir)
-            listdir = subprocess.check_output("ls %s"%decay_dir,shell=True).split()
+            listdir = os.listdir(decay_dir)
 
             decayed_file = pjoin(decay_dir,os.path.basename(evts_file)+'_decayed.lhe.gz')
             try:
@@ -380,7 +379,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
             evt_dir = pjoin(bremsstrahlung_dir, 'Events',new_run)
 
             os.makedirs(evt_dir)
-            listdir = subprocess.check_output("ls %s"%bremsstrahlung_dir,shell=True).split()
+            listdir = os.listdir(bremsstrahlung_dir)
 
             decayed_file = pjoin(bremsstrahlung_dir,'bremsstrahlung'+'_decayed.lhe.gz')
             
@@ -400,7 +399,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
             
         if self.DMmode == 'interaction_only':
             interactionevts_dir = pjoin(self.dir_path,'Events_to_interact')
-            listdir = subprocess.check_output("ls %s"%interactionevts_dir,shell=True).split()
+            listdir = os.listdir(interactionevts_dir)
             for file in listdir:
                 if any( [ext in file for ext in ['hepmc','lhe']]):
                     evts_file = file            
@@ -459,6 +458,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
             files.ln(evts_path, cpath, name='unweighted_events.lhe.gz')
             
             with misc.chdir(cpath):
+                misc.sprint(cpath)
                 hist2D_energy_angle = meshfitter.fit2D_energy_theta(self.proc_characteristics, \
                                                 'unweighted_events.lhe.gz',interaction_channel)
                 if hist2D_energy_angle.npass < 100:
@@ -696,7 +696,7 @@ class MADDUMPRunCmd(cmd.CmdShell):
 
     def do_ebeampdffit(self):
         ebeampdf_dir = pjoin(self.dir_path,'EbeamPdfFit')
-        listdir = subprocess.check_output("ls %s"%ebeampdf_dir,shell=True).split()
+        listdir = os.listdir(ebeampdf_dir)
         labels = ['electron_pdf','positron_pdf','gamma_pdf']
         for infile in listdir:
             label,ext = os.path.splitext(infile)
